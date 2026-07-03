@@ -12,17 +12,26 @@
         <button
           type="button"
           class="sidebar-reset"
-          title="ล้างค่าและเริ่มต้นใหม่"
-          aria-label="ล้างค่าและเริ่มต้นใหม่"
-          @click="$emit('reset-page')"
+          title="ล้างค่าและเริ่มต้นใหม่เฉพาะข้อมูลเป้าหมาย"
+          aria-label="ล้างค่าและเริ่มต้นใหม่เฉพาะข้อมูลเป้าหมาย"
+          @click="$emit('reset-target')"
         >
-          <i class="bi bi-arrow-clockwise"></i>
+          <i class="bi bi-eraser"></i>
+        </button>
+        <button
+          type="button"
+          class="sidebar-reset-all"
+          title="ล้างค่าและเริ่มต้นใหม่ทั้งหมด"
+          aria-label="ล้างค่าและเริ่มต้นใหม่ทั้งหมด"
+          @click="$emit('reset-all')"
+        >
+          <i class="bi bi-arrow-repeat"></i>
         </button>
         <button
           type="button"
           class="sidebar-toggle"
-          :title="collapsed ? 'เปิด Sidebar' : 'ปิด Sidebar'"
-          :aria-label="collapsed ? 'เปิด Sidebar' : 'ปิด Sidebar'"
+          :title="collapsed ? 'Open Sidebar' : 'Close Sidebar'"
+          :aria-label="collapsed ? 'Open Sidebar' : 'Close Sidebar'"
           @click="$emit('toggle-sidebar')"
         >
           <i class="bi" :class="collapsed ? 'bi-chevron-right' : 'bi-chevron-left'"></i>
@@ -251,10 +260,40 @@
         </div>
       </div>
 
-      <!-- 8. Pk Value -->
+      <!-- 8. Desired Effect -->
       <div class="form-section">
         <label class="form-label">
-          <span class="step-number">8</span><i class="bi bi-percent"></i> ค่า Pk
+          <span class="step-number">8</span><i class="bi bi-bullseye"></i> Desired Effect
+        </label>
+        <details ref="desiredEffectDropdown" class="target-source-dropdown">
+          <summary class="target-source-trigger">
+            <i class="source-icon bi" :class="selectedDesiredEffectData?.icon || 'bi-stars'" aria-hidden="true"></i>
+            <span>{{ selectedDesiredEffectData?.name || 'เลือกผลที่ต้องการ' }}</span>
+            <i class="dropdown-chevron bi bi-chevron-down" aria-hidden="true"></i>
+          </summary>
+          <div class="target-source-list themed-option-list" role="radiogroup" aria-label="Desired Effect">
+            <button
+              v-for="effect in desiredEffects"
+              :key="effect.name"
+              type="button"
+              class="target-source-option"
+              :class="{ active: formData.desiredEffect === effect.name }"
+              role="radio"
+              :aria-checked="formData.desiredEffect === effect.name"
+              @click="selectDesiredEffect(effect)"
+            >
+              <i class="source-icon bi" :class="effect.icon" aria-hidden="true"></i>
+              <span>{{ effect.name }}</span>
+              <i v-if="formData.desiredEffect === effect.name" class="selection-check bi bi-check-lg" aria-hidden="true"></i>
+            </button>
+          </div>
+        </details>
+      </div>
+
+      <!-- 9. Pk Value -->
+      <div class="form-section">
+        <label class="form-label">
+          <span class="step-number">9</span> Pk
         </label>
         <div class="field-shell numeric-field">
           <i class="bi bi-speedometer2"></i>
@@ -262,10 +301,10 @@
         </div>
       </div>
 
-      <!-- 9. CEP Value -->
+      <!-- 10. CEP Value -->
       <div class="form-section">
         <label class="form-label">
-          <span class="step-number">9</span><i class="bi bi-ruler"></i> ค่า CEP
+          <span class="step-number">10</span> CEP
         </label>
         <div class="field-shell numeric-field">
           <i class="bi bi-bullseye"></i>
@@ -282,7 +321,7 @@
         </div>
       </div>
 
-      <!-- 10. AI Analysis Button -->
+      <!-- AI Analysis Button -->
       <div class="form-section action-section">
         <button class="btn btn-primary btn-sm w-100 analysis-button" @click="runAIAnalysis">
           <i class="bi bi-cpu me-2"></i> Ai Analysis Module
@@ -318,13 +357,14 @@ export default {
       default: false
     }
   },
-  emits: ['ai-analysis', 'toggle-sidebar', 'reset-page', 'priority-change'],
+  emits: ['ai-analysis', 'toggle-sidebar', 'reset-target', 'reset-all', 'priority-change'],
   setup(props, { emit }) {
     const fileInput = ref(null)
     const targetSourceDropdown = ref(null)
     const targetTypeDropdown = ref(null)
     const structureDropdown = ref(null)
     const strengthDropdown = ref(null)
+    const desiredEffectDropdown = ref(null)
     const showValidationModal = ref(false)
 
     const formData = ref({
@@ -342,6 +382,7 @@ export default {
       imagePreview: null,
       imageName: '',
       targetDetails: '',
+      desiredEffect: '',
       pk: null,
       cep: null
     })
@@ -369,6 +410,10 @@ export default {
       name,
       icon: ['bi-shield-exclamation', 'bi-shield-check', 'bi-shield-fill-check'][index]
     })))
+    const desiredEffects = ref(mockAPI.desiredEffects.map((name, index) => ({
+      name,
+      icon: ['bi-x-octagon', 'bi-slash-circle', 'bi-building-down'][index]
+    })))
     const selectedTargetSourceData = computed(() =>
       formData.value.targetSources.find(source => source.name === formData.value.selectedTargetSource)
     )
@@ -380,6 +425,9 @@ export default {
     )
     const selectedStrengthData = computed(() =>
       strengthLevels.value.find(level => level.name === formData.value.strengthLevel)
+    )
+    const selectedDesiredEffectData = computed(() =>
+      desiredEffects.value.find(effect => effect.name === formData.value.desiredEffect)
     )
 
     const selectTargetSource = (source) => {
@@ -400,6 +448,11 @@ export default {
     const selectStrength = (level) => {
       formData.value.strengthLevel = level.name
       strengthDropdown.value?.removeAttribute('open')
+    }
+
+    const selectDesiredEffect = (effect) => {
+      formData.value.desiredEffect = effect.name
+      desiredEffectDropdown.value?.removeAttribute('open')
     }
 
     const triggerFileInput = () => {
@@ -457,6 +510,7 @@ export default {
         !formData.value.targetType ||
         !formData.value.structureType ||
         !formData.value.strengthLevel ||
+        !formData.value.desiredEffect ||
         formData.value.latitude === null ||
         formData.value.longitude === null ||
         formData.value.pk === null ||
@@ -481,6 +535,7 @@ export default {
         targetPriority: formData.value.targetPriority,
         structureType: formData.value.structureType,
         strengthLevel: formData.value.strengthLevel,
+        desiredEffect: formData.value.desiredEffect,
         latitude: formData.value.latitude,
         longitude: formData.value.longitude,
         pk: formData.value.pk,
@@ -495,18 +550,22 @@ export default {
       targetTypeDropdown,
       structureDropdown,
       strengthDropdown,
+      desiredEffectDropdown,
       showValidationModal,
       selectedTargetSourceData,
       selectedTargetTypeData,
       selectedStructureData,
       selectedStrengthData,
+      selectedDesiredEffectData,
       targetTypes,
       structureTypes,
       strengthLevels,
+      desiredEffects,
       selectTargetSource,
       selectTargetType,
       selectStructure,
       selectStrength,
+      selectDesiredEffect,
       triggerFileInput,
       clearImage,
       handleImageUpload,
@@ -592,7 +651,8 @@ export default {
 }
 
 .sidebar-toggle,
-.sidebar-reset {
+.sidebar-reset,
+.sidebar-reset-all {
   display: inline-flex;
   flex: 0 0 30px;
   align-items: center;
@@ -608,7 +668,8 @@ export default {
 }
 
 .sidebar-toggle:hover,
-.sidebar-reset:hover {
+.sidebar-reset:hover,
+.sidebar-reset-all:hover {
   border-color: #0d6efd;
   background: #0d6efd;
   color: #ffffff;
@@ -623,6 +684,16 @@ export default {
 .sidebar-reset:hover {
   border-color: #198754;
   background: #198754;
+}
+
+.sidebar-reset-all {
+  border-color: rgba(242, 139, 44, 0.62);
+  color: #f2a04e;
+}
+
+.sidebar-reset-all:hover {
+  border-color: #d8751d;
+  background: #d8751d;
 }
 
 .sidebar-container.collapsed .sidebar-header {

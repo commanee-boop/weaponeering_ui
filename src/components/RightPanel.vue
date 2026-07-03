@@ -5,8 +5,8 @@
         <button
           type="button"
           class="right-panel-toggle"
-          :title="collapsed ? 'เปิดแถบด้านขวา' : 'ปิดแถบด้านขวา'"
-          :aria-label="collapsed ? 'เปิดแถบด้านขวา' : 'ปิดแถบด้านขวา'"
+          :title="collapsed ? 'Open Sidebar' : 'Close Sidebar'"
+          :aria-label="collapsed ? 'Open Sidebar' : 'Close Sidebar'"
           @click="$emit('toggle-panel')"
         >
           <i class="bi" :class="collapsed ? 'bi-chevron-left' : 'bi-chevron-right'"></i>

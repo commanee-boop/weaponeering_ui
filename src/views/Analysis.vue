@@ -11,22 +11,23 @@
     >
       <div class="sidebar-col">
         <Sidebar
-          :key="`sidebar-${refreshKey}`"
+          :key="`sidebar-${sidebarRefreshKey}`"
           :collapsed="sidebarCollapsed"
           @toggle-sidebar="toggleSidebar"
-          @reset-page="refreshData"
+          @reset-target="resetTargetData"
+          @reset-all="refreshData"
           @priority-change="currentTargetPriority = $event"
           @ai-analysis="handleAIAnalysis"
         />
       </div>
       
       <div class="map-col">
-        <MapPanel :key="`map-${refreshKey}`" :latitude="currentLatitude" :longitude="currentLongitude" />
+        <MapPanel :key="`map-${mapRefreshKey}`" :latitude="currentLatitude" :longitude="currentLongitude" />
       </div>
       
       <div class="right-col">
         <RightPanel
-          :key="`right-${refreshKey}`"
+          :key="`right-${rightRefreshKey}`"
           :collapsed="rightPanelCollapsed"
           :target-priority="currentTargetPriority"
           @toggle-panel="toggleRightPanel"
@@ -37,7 +38,7 @@
 
     <div v-if="showResetNotice" class="reset-notice" role="status">
       <i class="bi bi-check-circle-fill"></i>
-      <span>ล้างข้อมูลและกลับสู่ค่าเริ่มต้นแล้ว</span>
+      <span>{{ resetNoticeMessage }}</span>
     </div>
   </div>
 </template>
@@ -63,8 +64,11 @@ export default {
     const sidebarCollapsed = ref(false)
     const rightPanelCollapsed = ref(false)
     const currentTargetPriority = ref('')
-    const refreshKey = ref(0)
+    const sidebarRefreshKey = ref(0)
+    const mapRefreshKey = ref(0)
+    const rightRefreshKey = ref(0)
     const showResetNotice = ref(false)
+    const resetNoticeMessage = ref('')
     let resetNoticeTimer = null
 
     const toggleSidebar = () => {
@@ -88,18 +92,32 @@ export default {
       alert('Data saved successfully')
     }
 
+    const displayResetNotice = message => {
+      resetNoticeMessage.value = message
+      showResetNotice.value = true
+      if (resetNoticeTimer) window.clearTimeout(resetNoticeTimer)
+      resetNoticeTimer = window.setTimeout(() => {
+        showResetNotice.value = false
+      }, 2200)
+    }
+
+    const resetTargetData = () => {
+      sidebarCollapsed.value = false
+      currentTargetPriority.value = ''
+      sidebarRefreshKey.value += 1
+      displayResetNotice('ล้างข้อมูลเป้าหมายและกลับสู่ค่าเริ่มต้นแล้ว')
+    }
+
     const refreshData = () => {
       currentLatitude.value = 16.8661
       currentLongitude.value = 100.9948
       sidebarCollapsed.value = false
       rightPanelCollapsed.value = false
       currentTargetPriority.value = ''
-      refreshKey.value += 1
-      showResetNotice.value = true
-      if (resetNoticeTimer) window.clearTimeout(resetNoticeTimer)
-      resetNoticeTimer = window.setTimeout(() => {
-        showResetNotice.value = false
-      }, 2200)
+      sidebarRefreshKey.value += 1
+      mapRefreshKey.value += 1
+      rightRefreshKey.value += 1
+      displayResetNotice('ล้างข้อมูลทั้งหมดและกลับสู่ค่าเริ่มต้นแล้ว')
     }
 
     onUnmounted(() => {
@@ -112,12 +130,16 @@ export default {
       sidebarCollapsed,
       rightPanelCollapsed,
       currentTargetPriority,
-      refreshKey,
+      sidebarRefreshKey,
+      mapRefreshKey,
+      rightRefreshKey,
       showResetNotice,
+      resetNoticeMessage,
       toggleSidebar,
       toggleRightPanel,
       handleAIAnalysis,
       handleSaveData,
+      resetTargetData,
       refreshData
     }
   }

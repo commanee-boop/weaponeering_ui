@@ -40,6 +40,13 @@ export const mockAPI = {
     'แข็งแรงพิเศษ'
   ],
 
+  // Desired effect options
+  desiredEffects: [
+    'สิ้นสภาพ (Destroy)',
+    'สูญเสียการควบคุม',
+    'พังทลาย'
+  ],
+
   // Top 5 recommendations
   recommendations: [
     { id: 1, item: 'เป้าหมายประเภท A', size: '2000 ปอนด์', qty: 3, pd: 0.85, pk: 0.92 },

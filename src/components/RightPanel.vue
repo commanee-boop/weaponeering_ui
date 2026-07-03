@@ -173,15 +173,32 @@
           <i class="bi bi-download"></i>
           <span>บันทึกข้อมูล และ นำออก</span>
         </div>
-        <div class="action-buttons">
+        <div ref="exportMenuRef" class="action-buttons">
           <button class="btn btn-success btn-sm w-100 mb-2" @click="openSaveModal">
             <i class="bi bi-save"></i>
             <span>บันทึกข้อมูล</span>
           </button>
-          <button class="btn btn-outline-primary btn-sm w-100" @click="exportData">
-            <i class="bi bi-download"></i>
-            <span>นำออก</span>
-          </button>
+          <div class="export-control">
+            <button class="btn btn-outline-primary btn-sm w-100 export-toggle" type="button" :aria-expanded="showExportMenu" @click.stop="showExportMenu = !showExportMenu">
+              <i class="bi bi-download"></i>
+              <span>นำออก</span>
+              <i class="bi bi-chevron-down export-chevron" :class="{ open: showExportMenu }"></i>
+            </button>
+            <div v-if="showExportMenu" class="export-format-menu" role="menu">
+              <button type="button" role="menuitem" @click="exportData('word')">
+                <span class="export-format-icon word"><i class="bi bi-file-earmark-word"></i></span>
+                <span><strong>Word</strong><small>เอกสาร .doc</small></span>
+              </button>
+              <button type="button" role="menuitem" @click="exportData('excel')">
+                <span class="export-format-icon excel"><i class="bi bi-file-earmark-excel"></i></span>
+                <span><strong>Excel</strong><small>ตารางข้อมูล .xls</small></span>
+              </button>
+              <button type="button" role="menuitem" @click="exportData('pdf')">
+                <span class="export-format-icon pdf"><i class="bi bi-file-earmark-pdf"></i></span>
+                <span><strong>PDF</strong><small>พิมพ์หรือบันทึก PDF</small></span>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="small text-muted mt-2">
           บันทึกในระบบแล้ว: {{ savedRecordsCount }} รายการ
@@ -281,7 +298,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import mockAPI from '../services/mockAPI'
 import SimulatorDemo from './SimulatorDemo.vue'
 
@@ -309,6 +326,8 @@ export default {
     const showSaveModal = ref(false)
     const showSaveConfirmation = ref(false)
     const showRecommendationModal = ref(false)
+    const showExportMenu = ref(false)
+    const exportMenuRef = ref(null)
     const recorderName = ref('')
     const savedRecordsCount = ref(0)
     const DB_KEY = 'weaponeering_records'
@@ -420,20 +439,43 @@ export default {
       }
     }
 
-    const exportData = () => {
-      const filename = `weaponeering_summary_${new Date().toISOString().split('T')[0]}.txt`
-      const content = [
-        'Weaponeering Analysis Summary',
-        `Generated: ${new Date().toLocaleString('th-TH')}`,
-        '',
-        'Recommendations:',
-        ...recommendations.value.map((item) => `- ${item.item} | Size: ${item.size} | Qty: ${item.qty} | Pd: ${item.pd.toFixed(2)} | Pk: ${item.pk.toFixed(2)}`),
-        '',
-        'AI Analysis:',
-        aiAnalysisText.value
-      ].join('\n')
+    const escapeHtml = (value) => String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;')
 
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const createReportHtml = () => {
+      const rows = recommendations.value.map((item, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(item.item)}</td>
+          <td>${escapeHtml(item.size)}</td>
+          <td>${escapeHtml(item.qty)}</td>
+          <td>${Number(item.pd).toFixed(2)}</td>
+          <td>${Number(item.pk).toFixed(2)}</td>
+        </tr>`).join('')
+
+      return `<!doctype html>
+        <html lang="th"><head><meta charset="utf-8"><title>Weaponeering Analysis Summary</title>
+        <style>
+          body{font-family:Kanit,Tahoma,sans-serif;color:#172033;padding:28px}h1{color:#174ea6;margin:0 0 4px}
+          .meta{color:#687386;margin-bottom:22px}table{width:100%;border-collapse:collapse;margin:12px 0 24px}
+          th,td{border:1px solid #aeb8c7;padding:8px;text-align:center}th{background:#174ea6;color:#fff}
+          td:nth-child(2){text-align:left}.analysis{white-space:pre-wrap;border-left:4px solid #174ea6;background:#f3f7fd;padding:14px}
+          @media print{body{padding:0}@page{size:A4 landscape;margin:14mm}}
+        </style></head><body>
+        <h1>Weaponeering Analysis Summary</h1>
+        <div class="meta">วันที่จัดทำ: ${escapeHtml(new Date().toLocaleString('th-TH'))}</div>
+        <h2>Recommendation</h2>
+        <table><thead><tr><th>ลำดับ</th><th>รายการ</th><th>ขนาด</th><th>จำนวน</th><th>Pd</th><th>Pk</th></tr></thead><tbody>${rows}</tbody></table>
+        <h2>AI Analysis</h2><div class="analysis">${escapeHtml(aiAnalysisText.value)}</div>
+        </body></html>`
+    }
+
+    const downloadDocument = (content, filename, mimeType) => {
+      const blob = new Blob(['\ufeff', content], { type: mimeType })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -444,9 +486,49 @@ export default {
       URL.revokeObjectURL(url)
     }
 
+    const exportData = (format) => {
+      showExportMenu.value = false
+      const date = new Date().toISOString().split('T')[0]
+      const reportHtml = createReportHtml()
+
+      if (format === 'word') {
+        downloadDocument(reportHtml, `weaponeering_summary_${date}.doc`, 'application/msword;charset=utf-8')
+        return
+      }
+
+      if (format === 'excel') {
+        downloadDocument(reportHtml, `weaponeering_summary_${date}.xls`, 'application/vnd.ms-excel;charset=utf-8')
+        return
+      }
+
+      if (format === 'pdf') {
+        const printWindow = window.open('', '_blank', 'width=1100,height=760')
+        if (!printWindow) {
+          alert('กรุณาอนุญาต Pop-up เพื่อส่งออก PDF')
+          return
+        }
+        printWindow.document.open()
+        printWindow.document.write(reportHtml)
+        printWindow.document.close()
+        window.setTimeout(() => {
+          printWindow.focus()
+          printWindow.print()
+        }, 350)
+      }
+    }
+
+    const closeExportMenuOnOutsideClick = (event) => {
+      if (exportMenuRef.value && !exportMenuRef.value.contains(event.target)) {
+        showExportMenu.value = false
+      }
+    }
+
     onMounted(() => {
       loadSavedRecords()
+      document.addEventListener('click', closeExportMenuOnOutsideClick)
     })
+
+    onBeforeUnmount(() => document.removeEventListener('click', closeExportMenuOnOutsideClick))
 
     return {
       recommendations,
@@ -456,6 +538,8 @@ export default {
       showSaveModal,
       showSaveConfirmation,
       showRecommendationModal,
+      showExportMenu,
+      exportMenuRef,
       recorderName,
       savedRecordsCount,
       selectRecommendation,
@@ -1110,6 +1194,10 @@ export default {
   gap: 8px;
 }
 
+.export-control {
+  position: relative;
+}
+
 .save-export-title,
 .action-buttons .btn {
   align-items: center;
@@ -1120,6 +1208,96 @@ export default {
 .action-buttons .btn {
   display: inline-flex;
   gap: 7px;
+}
+
+.export-toggle {
+  position: relative;
+  padding-right: 34px;
+}
+
+.export-chevron {
+  position: absolute;
+  right: 12px;
+  font-size: 0.68rem;
+  transition: transform 0.2s ease;
+}
+
+.export-chevron.open {
+  transform: rotate(180deg);
+}
+
+.export-format-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 7px);
+  left: 0;
+  z-index: 30;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--panel-bg);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.48);
+}
+
+.export-format-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.16s ease, transform 0.16s ease;
+}
+
+.export-format-menu button:hover {
+  background: rgba(13, 110, 253, 0.12);
+  transform: translateX(2px);
+}
+
+.export-format-menu button > span:last-child {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.18;
+}
+
+.export-format-menu strong {
+  font-size: 0.8rem;
+}
+
+.export-format-menu small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.64rem;
+}
+
+.export-format-icon {
+  display: inline-flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.export-format-icon.word {
+  background: rgba(47, 109, 179, 0.18);
+  color: #5aa4f2;
+}
+
+.export-format-icon.excel {
+  background: rgba(33, 163, 102, 0.18);
+  color: #35c985;
+}
+
+.export-format-icon.pdf {
+  background: rgba(220, 53, 69, 0.18);
+  color: #ff6575;
 }
 
 .modal-backdrop {

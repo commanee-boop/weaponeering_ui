@@ -22,7 +22,7 @@
       </button>
     </header>
 
-<div class="map-container" @click="closeLayerMenu">
+<div class="map-container" @click="closeAllMenus">
       <div class="map-controls-left">
         <button type="button" class="layer-toggle-btn" @click.stop="toggleLayerMenu" aria-label="Layer control">
           <i class="bi bi-layers"></i>
@@ -35,6 +35,7 @@
           </div>
           <div v-for="layer in layers" :key="layer.key" class="layer-row">
             <button type="button" class="layer-row-button" @click.stop="toggleLayer(layer.key)">
+              <i class="bi layer-row-icon" :class="layer.icon" aria-hidden="true"></i>
               <span class="layer-indicator" :class="{ active: layer.enabled }"></span>
               <span>{{ layer.label }}</span>
               <i class="bi" :class="layer.enabled ? 'bi-check2-square' : 'bi-square'" aria-hidden="true"></i>
@@ -44,12 +45,54 @@
       </div>
 
       <div class="map-controls-right">
-        <button type="button" @click.stop="activateMeasure" title="Measure"><i class="bi bi-rulers"></i></button>
-        <button type="button" @click.stop="activateAnnotation" title="Annotation"><i class="bi bi-pencil"></i></button>
-        <button type="button" @click.stop="showMapInfo" title="Layer / Info"><i class="bi bi-info-circle"></i></button>
-        <button type="button" @click.stop="refreshMap" title="Refresh map"><i class="bi bi-arrow-clockwise"></i></button>
-        <button type="button" @click.stop="zoomIn" title="Zoom in"><i class="bi bi-plus"></i></button>
-        <button type="button" @click.stop="zoomOut" title="Zoom out"><i class="bi bi-dash"></i></button>
+        <div class="right-btn-wrap">
+          <button type="button" class="control-btn" @click.stop="handleRightMenuAction('measure', 'none')" title="Measure"><i class="bi bi-rulers"></i></button>
+          <span class="control-label">Measure</span>
+        </div>
+
+        <div class="right-btn-wrap">
+          <button type="button" class="control-btn" @click.stop="toggleRightMenu('annotation')" title="Annotation"><i class="bi bi-pencil"></i></button>
+          <span class="control-label">Annotation</span>
+          <div v-if="activeRightMenu === 'annotation'" class="right-menu-panel" @click.stop>
+            <div class="layer-menu-header"><strong>Annotation</strong></div>
+            <div v-for="item in rightMenus.annotation" :key="item.key" class="right-menu-item">
+              <button type="button" class="right-menu-btn" @click.stop="handleRightMenuAction('annotation', item.key)">{{ item.label }}</button>
+            </div>
+            <div v-if="activeAnnotationAction === 'coords'" class="annotation-coords-form">
+              <label>Latitude</label>
+              <input type="number" step="0.000001" v-model.number="annotationLat" class="annotation-input" />
+              <label>Longitude</label>
+              <input type="number" step="0.000001" v-model.number="annotationLon" class="annotation-input" />
+              <button type="button" class="right-menu-btn" @click.stop="submitAnnotationCoordinates">บันทึกพิกัด</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="right-btn-wrap">
+          <button type="button" class="control-btn" @click.stop="toggleRightMenu('info')" title="Info"><i class="bi bi-info-circle"></i></button>
+          <span class="control-label">ข้อมูล</span>
+          <div v-if="activeRightMenu === 'info'" class="right-menu-panel" @click.stop>
+            <div class="layer-menu-header"><strong>Info</strong></div>
+            <div v-for="item in rightMenus.info" :key="item.key" class="right-menu-item">
+              <button type="button" class="right-menu-btn" @click.stop="handleRightMenuAction('info', item.key)">{{ item.label }}</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="right-btn-wrap">
+          <button type="button" class="control-btn" @click.stop="refreshMap" title="Refresh map"><i class="bi bi-arrow-clockwise"></i></button>
+          <span class="control-label">รีเฟรช</span>
+        </div>
+
+        <div class="right-btn-wrap">
+          <button type="button" class="control-btn" @click.stop="zoomIn" title="Zoom in"><i class="bi bi-plus"></i></button>
+          <span class="control-label">ซูมเข้า</span>
+        </div>
+
+        <div class="right-btn-wrap">
+          <button type="button" class="control-btn" @click.stop="zoomOut" title="Zoom out"><i class="bi bi-dash"></i></button>
+          <span class="control-label">ซูมออก</span>
+        </div>
       </div>
 
       <div ref="cesiumContainer" class="cesium-container"></div>
@@ -121,15 +164,17 @@ export default {
     const terrainLabel = ref('ELLIPSOID TERRAIN')
     const layerMenuOpen = ref(false)
     const layers = ref([
-      { key: 'bufferZone', label: 'Buffer Zone', enabled: true },
-      { key: 'structures', label: 'สิ่งปลูกสร้าง', enabled: true },
-      { key: 'roads', label: 'ถนน', enabled: true },
-      { key: 'community', label: 'พื้นที่ชุมชน', enabled: true },
-      { key: 'water', label: 'แหล่งน้ำ', enabled: true },
-      { key: 'green', label: 'พื้นที่สีเขียว', enabled: true },
-      { key: 'poi', label: 'จุดสำคัญ', enabled: true },
-      { key: 'satellite', label: 'ภาพดาวเทียม', enabled: true }
+      { key: 'bufferZone', label: 'Buffer Zone', icon: 'bi-globe-asia-australia', enabled: true },
+      { key: 'structures', label: 'สิ่งปลูกสร้าง', icon: 'bi-building', enabled: true },
+      { key: 'roads', label: 'ถนน', icon: 'bi-map', enabled: true },
+      { key: 'community', label: 'พื้นที่ชุมชน', icon: 'bi-house-door', enabled: true },
+      { key: 'water', label: 'แหล่งน้ำ', icon: 'bi-droplet-fill', enabled: true },
+      { key: 'green', label: 'พื้นที่สีเขียว', icon: 'bi-tree', enabled: true },
+      { key: 'poi', label: 'จุดสำคัญ', icon: 'bi-pin-map-fill', enabled: true },
+      { key: 'satellite', label: 'ภาพดาวเทียม', icon: 'bi-globe', enabled: true }
     ])
+    
+    
     let viewer = null
     let targetEntity = null
     let resizeObserver = null
@@ -139,6 +184,78 @@ export default {
 
     const toggleLayerMenu = () => {
       layerMenuOpen.value = !layerMenuOpen.value
+    }
+
+    const activeRightMenu = ref(null)
+    const rightMenus = ref({
+      measure: [
+        { key: 'distance', label: 'วัดระยะทาง' },
+        { key: 'area', label: 'วัดพื้นที่' },
+        { key: 'clear', label: 'ล้างการวัด' }
+      ],
+      annotation: [
+        { key: 'pin-green', label: 'เพิ่มหมุดสีเขียว' },
+        { key: 'pin-blue', label: 'เพิ่มหมุดสีน้ำเงิน' },
+        { key: 'pin-white', label: 'เพิ่มหมุดสีขาว' },
+        { key: 'pin-yellow', label: 'เพิ่มหมุดสีเหลือง' },
+        { key: 'coords', label: 'กรอกพิกัด lat/log' },
+        { key: 'list', label: 'รายการบันทึก' }
+      ],
+      info: [
+        { key: 'about', label: 'ข้อมูลแผนที่' }
+      ]
+    })
+
+    const activeAnnotationAction = ref(null)
+    const annotationLat = ref(props.latitude)
+    const annotationLon = ref(props.longitude)
+
+    const toggleRightMenu = (key) => {
+      if (activeRightMenu.value === key) {
+        activeRightMenu.value = null
+        activeAnnotationAction.value = null
+      } else {
+        activeRightMenu.value = key
+        activeAnnotationAction.value = null
+      }
+    }
+
+    const closeRightMenu = () => {
+      activeRightMenu.value = null
+      activeAnnotationAction.value = null
+    }
+
+    const closeAllMenus = () => { closeLayerMenu(); closeRightMenu() }
+
+    const addAnnotationPin = (color) => {
+      console.log('Add annotation pin color', color)
+      // TODO: implement adding pin entity in Cesium
+      closeRightMenu()
+    }
+
+    const submitAnnotationCoordinates = () => {
+      console.log('Annotation coordinates', annotationLat.value, annotationLon.value)
+      // TODO: implement coordinate annotation in Cesium
+      closeRightMenu()
+    }
+
+    const handleRightMenuAction = (menuKey, actionKey) => {
+      if (menuKey === 'annotation') {
+        if (actionKey.startsWith('pin-')) {
+          addAnnotationPin(actionKey.replace('pin-', ''))
+          return
+        }
+        if (actionKey === 'coords') {
+          activeAnnotationAction.value = 'coords'
+          return
+        }
+      }
+      console.log('Right menu action', menuKey, actionKey)
+      if (menuKey === 'measure') {
+        // Measure button should do nothing for now
+        return
+      }
+      closeRightMenu()
     }
 
     const closeLayerMenu = () => {
@@ -500,12 +617,18 @@ export default {
       terrainLabel,
       toggleExpanded,
       closeLayerMenu,
+      closeAllMenus,
       layerMenuOpen,
       layers,
       toggleLayerMenu,
       toggleLayer,
       activateMeasure,
       activateAnnotation,
+      activeRightMenu,
+      rightMenus,
+      toggleRightMenu,
+      closeRightMenu,
+      handleRightMenuAction,
       showMapInfo,
       refreshMap,
       zoomIn,
@@ -517,8 +640,8 @@ export default {
 
 <style scoped>
 .map-backdrop { position: fixed; inset: 0; z-index: 1390; background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(4px); }
-.map-panel { position: relative; height: 100%; display: flex; flex-direction: column; overflow: visible; border: 1px solid #345f91; border-radius: 8px; background: #07111d; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.26); }
-.map-panel.expanded { position: fixed; inset: 28px; z-index: 1400; height: auto; border-radius: 14px; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.72); overflow: visible; }
+.map-panel { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #345f91; border-radius: 8px; background: #07111d; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.26); }
+.map-panel.expanded { position: fixed; inset: 28px; z-index: 1400; height: auto; border-radius: 14px; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.72); overflow: hidden; }
 .map-toolbar { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px; border-bottom: 1px solid #294765; background: linear-gradient(90deg, #0b1c30, #102945); }
 .map-title { display: flex; align-items: center; min-width: 0; gap: 9px; }
 .map-title-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: rgba(13, 110, 253, 0.2); color: #6ea8fe; }
@@ -526,29 +649,62 @@ export default {
 .map-title strong { color: #e7f1ff; font-size: 0.82rem; }.map-title small { color: #849bb5; font: 0.62rem monospace; }
 .map-live { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: #7fb99f; font: 600 0.58rem monospace; }.map-live i { width: 7px; height: 7px; border-radius: 50%; background: #36d28b; box-shadow: 0 0 8px rgba(54, 210, 139, 0.8); }
 .map-expand-button { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid #355574; border-radius: 7px; background: #0c1d2e; color: #a9c9ed; }.map-expand-button:hover { border-color: #0d6efd; background: #0d6efd; color: #fff; }
-.map-container { position: relative; flex: 1; min-height: 280px; overflow: visible; background: #06111f; pointer-events: auto; }
+.map-container { position: relative; flex: 1; min-height: 280px; overflow: hidden; background: #06111f; pointer-events: auto; }
 .cesium-container { position: absolute; inset: 0; z-index: 0; pointer-events: auto; }
-.map-controls-left, .map-controls-right { position: absolute; top: 14px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; }
+.map-controls-left, .map-controls-right { position: absolute; top: 18px; z-index: 10; display: flex; flex-direction: column; gap: 6px; pointer-events: auto; }
 .map-controls-left { left: 12px; align-items: flex-start; overflow: visible; }
 .map-controls-right { right: 12px; align-items: flex-end; }
-.layer-toggle-btn, .map-controls-right button { position: relative; z-index: 9999; width: 46px; height: 46px; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 14px; background: rgba(4, 11, 26, 0.88); color: #e7f1ff; display: inline-flex; align-items: center; justify-content: center; transition: border-color 0.18s ease, background 0.18s ease; pointer-events: auto; }
-.layer-toggle-btn:hover, .map-controls-right button:hover { border-color: #72b7ff; background: rgba(9, 29, 64, 0.98); }
-.map-controls-right button { margin-bottom: 6px; }
-.map-controls-right button i { font-size: 1.08rem; line-height: 1; }
-.layer-menu-panel { position: absolute; top: calc(100% + 8px); left: 0; width: 268px; padding: 14px 14px 12px; border-radius: 18px; background: rgba(5, 14, 28, 0.96); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 22px 46px rgba(0, 0, 0, 0.32); backdrop-filter: blur(14px); pointer-events: auto; }
-.layer-menu-header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; color: #d8e9f3; }
-.layer-menu-header strong { font-size: 0.95rem; }
-.layer-menu-header small { color: #8aa0c4; font-size: 0.72rem; }
-.layer-row { margin-bottom: 7px; }
-.layer-row-button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(14, 30, 52, 0.88); border: 1px solid rgba(255, 255, 255, 0.06); color: #eef4ff; font-size: 0.88rem; transition: background 0.18s ease; }
+.layer-toggle-btn, .map-controls-right button { position: relative; z-index: 11; width: 36px; height: 36px; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; background: rgba(3, 8, 14, 0.92); color: #e7f1ff; display: inline-flex; align-items: center; justify-content: center; transition: transform 0.12s ease, background 0.18s ease, box-shadow 0.18s ease; pointer-events: auto; box-shadow: 0 6px 16px rgba(2,6,20,0.5); }
+.layer-toggle-btn:hover, .map-controls-right button:hover { transform: translateY(-1px); border-color: rgba(114,183,255,0.14); background: rgba(9, 29, 64, 0.96); }
+.map-controls-right button { margin-bottom: 2px; }
+.map-controls-right button i { font-size: 0.88rem; line-height: 1; }
+.right-btn-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.control-btn { width: 36px; height: 36px; border-radius: 10px; }
+.control-label { color: #9bb1c7; font-size: 0.54rem; line-height: 1.1; text-align: center; max-width: 56px; }
+.layer-menu-panel { position: absolute; top: 0; left: calc(100% + 6px); width: 190px; padding: 6px; border-radius: 12px; background: rgba(5, 14, 28, 0.96); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 14px 24px rgba(0, 0, 0, 0.32); backdrop-filter: blur(14px); pointer-events: auto; }
+.layer-menu-header { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; color: #d8e9f3; }
+.layer-menu-header strong { font-size: 0.88rem; }
+.layer-menu-header small { color: #8aa0c4; font-size: 0.66rem; }
+.layer-row { margin-bottom: 6px; }
+.layer-row-button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px; border-radius: 10px; background: rgba(14, 30, 52, 0.88); border: 1px solid rgba(255, 255, 255, 0.06); color: #eef4ff; font-size: 0.8rem; transition: background 0.18s ease; }
 .layer-row-button:hover { background: rgba(17, 41, 74, 0.96); }
-.layer-indicator { width: 12px; height: 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.1); }
-.layer-indicator.active { background: #39e384; border-color: #8af6c8; }
+.layer-row-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; min-width: 16px; height: 16px; color: #82caff; font-size: 0.88rem; margin-right: 6px; }
+.layer-row-icon.bi-globe-asia-australia { color: #a2d3ff; }
+.layer-row-icon.bi-building { color: #ffce73; }
+.layer-row-icon.bi-map { color: #9beeeb; }
+.layer-row-icon.bi-house-door { color: #ffc07c; }
+.layer-row-icon.bi-droplet-fill { color: #57c7ff; }
+.layer-row-icon.bi-tree { color: #76d28a; }
+.layer-row-icon.bi-pin-map-fill { color: #ff6978; }
+.layer-row-icon.bi-globe { color: #9aa7ff; }
+.layer-label { flex: 1 1 auto; min-width: 0; }
 .map-state { position: absolute; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 7px; background: #071521; color: #d8e9fb; }.map-state small { color: #7890a8; font-size: 0.68rem; }.map-state.error i { color: #ffbd55; font-size: 1.5rem; }
 .map-loader { width: 30px; height: 30px; border: 3px solid rgba(110, 168, 254, 0.2); border-top-color: #6ea8fe; border-radius: 50%; animation: mapSpin 0.8s linear infinite; }@keyframes mapSpin { to { transform: rotate(360deg); } }
 .coordinate-card { position: absolute; top: 14px; left: 72px; z-index: 4; display: flex; flex-direction: column; padding: 8px 10px; border: 1px solid rgba(95, 152, 207, 0.4); border-radius: 7px; background: rgba(4, 14, 25, 0.78); pointer-events: none; }.coordinate-card span { color: #7890a8; font: 0.54rem monospace; }.coordinate-card strong { color: #c6dcf3; font: 600 0.68rem monospace; }
 .map-source-badge { position: absolute; right: 12px; bottom: 10px; z-index: 4; display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border: 1px solid rgba(95, 152, 207, 0.32); border-radius: 5px; background: rgba(4, 14, 25, 0.72); color: #91abc4; font: 0.55rem monospace; pointer-events: none; }
 .map-info { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 42px; padding: 8px 12px; border-top: 1px solid #294765; background: #091725; color: #9bb1c7; font-size: 0.66rem; }.map-info span { display: inline-flex; align-items: center; gap: 5px; }.map-info small { margin-left: auto; color: #617890; font-size: 0.58rem; }.zone-dot { width: 7px; height: 7px; border-radius: 50%; }.zone-green { background: #42ce8a; }.zone-yellow { background: #d9d74b; }.zone-orange { background: #ff9d3d; }.zone-red { background: #ff555f; }
+.right-menu-panel { position: absolute; top: 0; right: calc(100% + 8px); width: 176px; padding: 8px; border-radius: 12px; background: rgba(4,10,18,0.98); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 14px 24px rgba(0,0,0,0.38); backdrop-filter: blur(10px); pointer-events: auto; }
+.right-menu-panel .layer-menu-header { margin-bottom: 6px; }
+.right-menu-panel .layer-menu-header strong { color: #f3f9ff; font-size: 0.9rem; }
+.right-menu-panel .right-menu-item { margin-bottom: 6px; }
+.right-menu-panel .right-menu-btn { padding: 8px 10px; border-radius: 10px; font-size: 0.84rem; }
+.right-menu-panel .right-menu-btn:last-child { margin-bottom: 0; }
+.right-menu-panel.inline-menu { position: static; top: auto; right: auto; width: 100%; padding: 0; border-radius: 0; background: transparent; border: none; box-shadow: none; }
+.right-menu-panel.inline-menu .layer-menu-header { margin-bottom: 6px; }
+.right-menu-panel.inline-menu .right-menu-item { margin-bottom: 6px; }
+.right-menu-panel.inline-menu .right-menu-btn { width: 100%; padding: 8px 10px; border-radius: 12px; background: rgba(18,28,40,0.96); border: 1px solid rgba(255,255,255,0.06); white-space: normal; text-align: center; color: #f6fbff; }
+.right-menu-panel.inline-menu .right-menu-btn:hover { background: rgba(26,44,72,0.98); }
+.right-menu-panel.inline-menu .right-menu-btn { width: 100%; display: block; align-items: stretch; gap: 0; padding: 8px 10px; border-radius: 12px; background: rgba(18,28,40,0.96); border: 1px solid rgba(255,255,255,0.06); color: #f6fbff; text-align: center; font-size: 0.92rem; box-sizing: border-box; }
+.right-menu-panel.inline-menu .right-menu-btn i { display: none; }
+.right-menu-item { margin-bottom: 8px; }
+.right-menu-btn { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(18,28,40,0.96); border: 1px solid rgba(255,255,255,0.06); color: #f6fbff; text-align: left; font-size: 0.9rem; box-sizing: border-box; white-space: nowrap; }
+.right-menu-btn:hover { background: rgba(26,44,72,0.98); }
+
+/* Ensure buttons inside the right-menu-panel override the parent toolbar button rules */
+.right-menu-panel .right-menu-btn { width: 100% !important; }
+
+/* slightly emphasize the header */
+.right-menu-panel .layer-menu-header strong { color: #f3f9ff; font-size: 1rem; }
 :deep(.cesium-viewer), :deep(.cesium-viewer-cesiumWidgetContainer), :deep(.cesium-widget), :deep(.cesium-widget canvas) { width: 100%; height: 100%; }
 :deep(.cesium-viewer-bottom) { bottom: 2px; }
 @media (max-width: 600px) { .map-panel.expanded { inset: 8px; }.map-info small, .map-live { display: none; } }

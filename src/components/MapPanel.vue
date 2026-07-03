@@ -56,14 +56,10 @@
           <div v-if="activeRightMenu === 'annotation'" class="right-menu-panel" @click.stop>
             <div class="layer-menu-header"><strong>Annotation</strong></div>
             <div v-for="item in rightMenus.annotation" :key="item.key" class="right-menu-item">
-              <button type="button" class="right-menu-btn" @click.stop="handleRightMenuAction('annotation', item.key)">{{ item.label }}</button>
-            </div>
-            <div v-if="activeAnnotationAction === 'coords'" class="annotation-coords-form">
-              <label>Latitude</label>
-              <input type="number" step="0.000001" v-model.number="annotationLat" class="annotation-input" />
-              <label>Longitude</label>
-              <input type="number" step="0.000001" v-model.number="annotationLon" class="annotation-input" />
-              <button type="button" class="right-menu-btn" @click.stop="submitAnnotationCoordinates">บันทึกพิกัด</button>
+              <button type="button" class="right-menu-btn annotation-color-option" @click.stop="handleRightMenuAction('annotation', item.key)">
+                <span class="annotation-color-dot" :style="{ backgroundColor: item.color }"></span>
+                <span>{{ item.label }}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -194,35 +190,26 @@ export default {
         { key: 'clear', label: 'ล้างการวัด' }
       ],
       annotation: [
-        { key: 'pin-green', label: 'เพิ่มหมุดสีเขียว' },
-        { key: 'pin-blue', label: 'เพิ่มหมุดสีน้ำเงิน' },
-        { key: 'pin-white', label: 'เพิ่มหมุดสีขาว' },
-        { key: 'pin-yellow', label: 'เพิ่มหมุดสีเหลือง' },
-        { key: 'coords', label: 'กรอกพิกัด lat/log' },
-        { key: 'list', label: 'รายการบันทึก' }
+        { key: 'pin-red', label: 'สีแดง', color: '#ef4444' },
+        { key: 'pin-yellow', label: 'สีเหลือง', color: '#facc15' },
+        { key: 'pin-green', label: 'สีเขียว', color: '#22c55e' },
+        { key: 'pin-white', label: 'สีขาว', color: '#ffffff' }
       ],
       info: [
         { key: 'about', label: 'ข้อมูลแผนที่' }
       ]
     })
 
-    const activeAnnotationAction = ref(null)
-    const annotationLat = ref(props.latitude)
-    const annotationLon = ref(props.longitude)
-
     const toggleRightMenu = (key) => {
       if (activeRightMenu.value === key) {
         activeRightMenu.value = null
-        activeAnnotationAction.value = null
       } else {
         activeRightMenu.value = key
-        activeAnnotationAction.value = null
       }
     }
 
     const closeRightMenu = () => {
       activeRightMenu.value = null
-      activeAnnotationAction.value = null
     }
 
     const closeAllMenus = () => { closeLayerMenu(); closeRightMenu() }
@@ -233,20 +220,10 @@ export default {
       closeRightMenu()
     }
 
-    const submitAnnotationCoordinates = () => {
-      console.log('Annotation coordinates', annotationLat.value, annotationLon.value)
-      // TODO: implement coordinate annotation in Cesium
-      closeRightMenu()
-    }
-
     const handleRightMenuAction = (menuKey, actionKey) => {
       if (menuKey === 'annotation') {
         if (actionKey.startsWith('pin-')) {
           addAnnotationPin(actionKey.replace('pin-', ''))
-          return
-        }
-        if (actionKey === 'coords') {
-          activeAnnotationAction.value = 'coords'
           return
         }
       }
@@ -699,6 +676,8 @@ export default {
 .right-menu-item { margin-bottom: 8px; }
 .right-menu-btn { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(18,28,40,0.96); border: 1px solid rgba(255,255,255,0.06); color: #f6fbff; text-align: left; font-size: 0.9rem; box-sizing: border-box; white-space: nowrap; }
 .right-menu-btn:hover { background: rgba(26,44,72,0.98); }
+.annotation-color-option { justify-content: flex-start; }
+.annotation-color-dot { width: 14px; height: 14px; flex: 0 0 14px; border: 1px solid rgba(255,255,255,0.58); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,0.06); }
 
 /* Ensure buttons inside the right-menu-panel override the parent toolbar button rules */
 .right-menu-panel .right-menu-btn { width: 100% !important; }

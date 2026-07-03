@@ -49,11 +49,11 @@ export const mockAPI = {
 
   // Top 5 recommendations
   recommendations: [
-    { id: 1, item: 'เป้าหมายประเภท A', size: '2000 ปอนด์', qty: 3, pd: 0.85, pk: 0.92 },
-    { id: 2, item: 'เป้าหมายประเภท B', size: '1500 ปอนด์', qty: 2, pd: 0.78, pk: 0.88 },
-    { id: 3, item: 'เป้าหมายประเภท C', size: '1000 ปอนด์', qty: 4, pd: 0.82, pk: 0.90 },
-    { id: 4, item: 'เป้าหมายประเภท D', size: '500 ปอนด์', qty: 1, pd: 0.75, pk: 0.85 },
-    { id: 5, item: 'เป้าหมายประเภท E', size: '250 ปอนด์', qty: 2, pd: 0.88, pk: 0.95 }
+    { id: 1, item: 'อาคาร', size: '2000 ปอนด์', qty: 3, pd: 0.85, pk: 0.92 },
+    { id: 2, item: 'สะพาน', size: '1500 ปอนด์', qty: 2, pd: 0.78, pk: 0.88 },
+    { id: 3, item: 'บังเกอร์', size: '1000 ปอนด์', qty: 4, pd: 0.82, pk: 0.90 },
+    { id: 4, item: 'คูเลน', size: '500 ปอนด์', qty: 1, pd: 0.75, pk: 0.85 },
+    { id: 5, item: 'รันเวย์', size: '250 ปอนด์', qty: 2, pd: 0.88, pk: 0.95 }
   ],
 
   // AI Analysis result text

@@ -89,7 +89,6 @@ export default {
 
     const handleSaveData = (formData) => {
       console.log('Saving data:', formData)
-      alert('Data saved successfully')
     }
 
     const displayResetNotice = message => {

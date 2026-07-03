@@ -6,7 +6,11 @@ export default {
 
 <template>
   <div id="app">
-    <router-view></router-view>
+    <router-view v-slot="{ Component }">
+      <keep-alive :max="3">
+        <component :is="Component" />
+      </keep-alive>
+    </router-view>
   </div>
 </template>
 
@@ -17,9 +21,23 @@ export default {
   box-sizing: border-box;
 }
 
+html,
+body,
+#app {
+  font-family: 'Kanit', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: #f5f5f5;
+}
+
+button,
+input,
+select,
+textarea,
+table,
+dialog {
+  font-family: inherit;
 }
 
 #app {

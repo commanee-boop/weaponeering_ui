@@ -11,9 +11,19 @@
       <div class="sidebar-actions">
         <button
           type="button"
+          class="sidebar-toggle"
+          :title="collapsed ? 'เปิดแถบบาร์' : 'ปิดแถบบาร์'"
+          :aria-label="collapsed ? 'เปิดแถบบาร์' : 'ปิดแถบบาร์'"
+          @click="$emit('toggle-sidebar')"
+        >
+          <i class="bi" :class="collapsed ? 'bi-chevron-right' : 'bi-chevron-left'"></i>
+        </button>
+        <button
+          type="button"
           class="sidebar-reset"
           title="ล้างค่าและเริ่มต้นใหม่เฉพาะข้อมูลเป้าหมาย"
           aria-label="ล้างค่าและเริ่มต้นใหม่เฉพาะข้อมูลเป้าหมาย"
+          :disabled="collapsed"
           @click="$emit('reset-target')"
         >
           <i class="bi bi-eraser"></i>
@@ -23,18 +33,10 @@
           class="sidebar-reset-all"
           title="ล้างค่าและเริ่มต้นใหม่ทั้งหมด"
           aria-label="ล้างค่าและเริ่มต้นใหม่ทั้งหมด"
+          :disabled="collapsed"
           @click="$emit('reset-all')"
         >
           <i class="bi bi-arrow-repeat"></i>
-        </button>
-        <button
-          type="button"
-          class="sidebar-toggle"
-          :title="collapsed ? 'Open Sidebar' : 'Close Sidebar'"
-          :aria-label="collapsed ? 'Open Sidebar' : 'Close Sidebar'"
-          @click="$emit('toggle-sidebar')"
-        >
-          <i class="bi" :class="collapsed ? 'bi-chevron-right' : 'bi-chevron-left'"></i>
         </button>
       </div>
     </div>
@@ -112,11 +114,10 @@
         </label>
         <details ref="targetTypeDropdown" class="target-source-dropdown">
           <summary class="target-source-trigger">
-            <i
-              class="source-icon bi"
-              :class="selectedTargetTypeData?.icon || 'bi-crosshair'"
-              aria-hidden="true"
-            ></i>
+            <svg v-if="selectedTargetTypeData?.name === 'สะพาน'" class="source-icon bridge-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 7.5h20M4 7.5v11M20 7.5v11M6 7.5c0 5.4 2.7 8 6 8s6-2.6 6-8M2 18.5h20" />
+            </svg>
+            <i v-else class="source-icon bi" :class="selectedTargetTypeData?.icon || 'bi-crosshair'" aria-hidden="true"></i>
             <span>{{ selectedTargetTypeData?.name || '-- เลือกประเภทเป้าหมาย --' }}</span>
             <i class="dropdown-chevron bi bi-chevron-down" aria-hidden="true"></i>
           </summary>
@@ -131,7 +132,10 @@
               :aria-checked="formData.targetType === type.name"
               @click="selectTargetType(type)"
             >
-              <i class="source-icon bi" :class="type.icon" aria-hidden="true"></i>
+              <svg v-if="type.name === 'สะพาน'" class="source-icon bridge-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 7.5h20M4 7.5v11M20 7.5v11M6 7.5c0 5.4 2.7 8 6 8s6-2.6 6-8M2 18.5h20" />
+              </svg>
+              <i v-else class="source-icon bi" :class="type.icon" aria-hidden="true"></i>
               <span>{{ type.name }}</span>
               <i
                 v-if="formData.targetType === type.name"
@@ -650,6 +654,10 @@ export default {
   gap: 6px;
 }
 
+.sidebar-reset { order: 1; }
+.sidebar-reset-all { order: 2; }
+.sidebar-toggle { order: 3; }
+
 .sidebar-toggle,
 .sidebar-reset,
 .sidebar-reset-all {
@@ -668,8 +676,8 @@ export default {
 }
 
 .sidebar-toggle:hover,
-.sidebar-reset:hover,
-.sidebar-reset-all:hover {
+.sidebar-reset:hover:not(:disabled),
+.sidebar-reset-all:hover:not(:disabled) {
   border-color: #0d6efd;
   background: #0d6efd;
   color: #ffffff;
@@ -681,7 +689,7 @@ export default {
   color: #56c98d;
 }
 
-.sidebar-reset:hover {
+.sidebar-reset:hover:not(:disabled) {
   border-color: #198754;
   background: #198754;
 }
@@ -691,9 +699,16 @@ export default {
   color: #f2a04e;
 }
 
-.sidebar-reset-all:hover {
+.sidebar-reset-all:hover:not(:disabled) {
   border-color: #d8751d;
   background: #d8751d;
+}
+
+.sidebar-reset:disabled,
+.sidebar-reset-all:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+  pointer-events: none;
 }
 
 .sidebar-container.collapsed .sidebar-header {
@@ -705,6 +720,14 @@ export default {
 .sidebar-container.collapsed .sidebar-brand {
   justify-content: center;
 }
+
+.sidebar-container.collapsed .sidebar-actions {
+  flex-direction: column;
+}
+
+.sidebar-container.collapsed .sidebar-toggle { order: 1; }
+.sidebar-container.collapsed .sidebar-reset { order: 2; }
+.sidebar-container.collapsed .sidebar-reset-all { order: 3; }
 
 .sidebar-scroll {
   flex: 1;
@@ -854,6 +877,16 @@ export default {
 .source-icon {
   color: currentColor;
   font-size: 1.15rem;
+}
+
+.bridge-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .selection-check {

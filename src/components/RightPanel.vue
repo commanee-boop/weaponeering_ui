@@ -5,8 +5,8 @@
         <button
           type="button"
           class="right-panel-toggle"
-          :title="collapsed ? 'Open Sidebar' : 'Close Sidebar'"
-          :aria-label="collapsed ? 'Open Sidebar' : 'Close Sidebar'"
+          :title="collapsed ? 'เปิดแถบบาร์' : 'ปิดแถบบาร์'"
+          :aria-label="collapsed ? 'เปิดแถบบาร์' : 'ปิดแถบบาร์'"
           @click="$emit('toggle-panel')"
         >
           <i class="bi" :class="collapsed ? 'bi-chevron-left' : 'bi-chevron-right'"></i>
@@ -169,15 +169,18 @@
 
       <!-- Save / Export Section -->
       <div class="mt-4 pt-4 border-top">
-        <div class="section-title mb-3">
-          <i class="bi bi-download"></i> บันทึกข้อมูล และ นำออก
+        <div class="section-title save-export-title mb-3">
+          <i class="bi bi-download"></i>
+          <span>บันทึกข้อมูล และ นำออก</span>
         </div>
         <div class="action-buttons">
           <button class="btn btn-success btn-sm w-100 mb-2" @click="openSaveModal">
-            <i class="bi bi-save"></i> บันทึกข้อมูล
+            <i class="bi bi-save"></i>
+            <span>บันทึกข้อมูล</span>
           </button>
           <button class="btn btn-outline-primary btn-sm w-100" @click="exportData">
-            <i class="bi bi-download"></i> นำออก
+            <i class="bi bi-download"></i>
+            <span>นำออก</span>
           </button>
         </div>
         <div class="small text-muted mt-2">
@@ -253,7 +256,23 @@
           </div>
           <div class="modal-footer">
             <button class="btn btn-outline-secondary btn-sm" @click="closeSaveModal">ยกเลิก</button>
-            <button class="btn btn-success btn-sm" :disabled="!recorderName.trim()" @click="saveRecordToDatabase">บันทึก</button>
+            <button class="btn btn-success btn-sm" :disabled="!recorderName.trim()" @click="requestSaveConfirmation">บันทึก</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="showSaveConfirmation" class="modal-backdrop confirmation-backdrop" @click.self="cancelSaveConfirmation">
+        <div class="modal-card confirmation-card" role="alertdialog" aria-modal="true" aria-labelledby="save-confirmation-title">
+          <div class="confirmation-icon" aria-hidden="true">
+            <i class="bi bi-question-lg"></i>
+          </div>
+          <h5 id="save-confirmation-title">ต้องการบันทึกข้อมูลหรือไม่?</h5>
+          <p>โปรดตรวจสอบข้อมูลก่อนยืนยันการบันทึก</p>
+          <div class="confirmation-actions">
+            <button type="button" class="confirmation-cancel" @click="cancelSaveConfirmation">ยกเลิก</button>
+            <button type="button" class="confirmation-accept" @click="saveRecordToDatabase">
+              <i class="bi bi-check-lg"></i> ต้องการ
+            </button>
           </div>
         </div>
       </div>
@@ -288,6 +307,7 @@ export default {
     ])
     const chatInput = ref('')
     const showSaveModal = ref(false)
+    const showSaveConfirmation = ref(false)
     const showRecommendationModal = ref(false)
     const recorderName = ref('')
     const savedRecordsCount = ref(0)
@@ -351,7 +371,20 @@ export default {
 
     const closeSaveModal = () => {
       showSaveModal.value = false
+      showSaveConfirmation.value = false
       recorderName.value = ''
+    }
+
+    const requestSaveConfirmation = () => {
+      if (!recorderName.value.trim()) {
+        alert('กรุณากรอกชื่อผู้บันทึก')
+        return
+      }
+      showSaveConfirmation.value = true
+    }
+
+    const cancelSaveConfirmation = () => {
+      showSaveConfirmation.value = false
     }
 
     const saveRecordToDatabase = () => {
@@ -362,6 +395,7 @@ export default {
       }
 
       try {
+        showSaveConfirmation.value = false
         const existing = JSON.parse(window.localStorage.getItem(DB_KEY) || '[]')
         const record = {
           id: Date.now(),
@@ -380,7 +414,6 @@ export default {
         emit('save-data', record)
         showSaveModal.value = false
         recorderName.value = ''
-        alert(`บันทึกข้อมูลเรียบร้อยแล้ว โดย ${name}`)
       } catch (error) {
         console.error('Unable to save record', error)
         alert('ไม่สามารถบันทึกข้อมูลได้ในขณะนี้')
@@ -421,6 +454,7 @@ export default {
       chatMessages,
       chatInput,
       showSaveModal,
+      showSaveConfirmation,
       showRecommendationModal,
       recorderName,
       savedRecordsCount,
@@ -430,6 +464,8 @@ export default {
       sendChatMessage,
       openSaveModal,
       closeSaveModal,
+      requestSaveConfirmation,
+      cancelSaveConfirmation,
       saveRecordToDatabase,
       exportData
     }
@@ -536,7 +572,13 @@ export default {
 }
 
 .right-panel.collapsed .right-panel-brand {
+  order: 1;
   justify-content: center;
+}
+
+.right-panel.collapsed .right-panel-actions {
+  order: 2;
+  flex-direction: column;
 }
 
 .right-panel-scroll {
@@ -646,11 +688,13 @@ export default {
 .recommendation-table {
   --bs-table-bg: transparent;
   --bs-table-color: var(--text);
-  min-width: 540px;
+  width: 100%;
+  min-width: 100%;
+  table-layout: fixed;
   margin-bottom: 0;
   border: 0;
   color: var(--text);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
 }
 
 .recommendation-table thead {
@@ -661,7 +705,7 @@ export default {
 }
 
 .recommendation-table thead th {
-  padding: 10px 8px;
+  padding: 8px 3px;
   border: 0;
   color: #dbe9ff;
   font-size: 0.68rem;
@@ -670,6 +714,19 @@ export default {
   text-align: center;
   white-space: nowrap;
 }
+
+.recommendation-table th:nth-child(1),
+.recommendation-table td:nth-child(1) { width: 12%; }
+.recommendation-table th:nth-child(2),
+.recommendation-table td:nth-child(2) { width: 20%; }
+.recommendation-table th:nth-child(3),
+.recommendation-table td:nth-child(3) { width: 26%; }
+.recommendation-table th:nth-child(4),
+.recommendation-table td:nth-child(4) { width: 14%; }
+.recommendation-table th:nth-child(5),
+.recommendation-table td:nth-child(5),
+.recommendation-table th:nth-child(6),
+.recommendation-table td:nth-child(6) { width: 14%; }
 
 .recommendation-table thead th:nth-child(2) {
   text-align: left;
@@ -695,7 +752,7 @@ export default {
 }
 
 .recommendation-table tbody td {
-  padding: 9px 8px;
+  padding: 7px 3px;
   border: 0;
   color: var(--text);
   vertical-align: middle;
@@ -710,8 +767,8 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 27px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
   border: 1px solid rgba(255, 255, 255, 0.38);
   border-radius: 50%;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.34), 0 3px 7px rgba(0, 0, 0, 0.24);
@@ -744,24 +801,29 @@ export default {
 .recommendation-name {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  overflow: hidden;
   font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .size-chip {
-  padding: 3px 7px;
+  padding: 2px 4px;
   border: 1px solid var(--border);
   border-radius: 5px;
   background: rgba(108, 117, 125, 0.1);
   color: var(--text);
-  font-size: 0.7rem;
+  font-size: 0.61rem;
+  white-space: nowrap;
 }
 
 .qty-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  height: 24px;
+  min-width: 22px;
+  height: 22px;
   border-radius: 6px;
   background: rgba(111, 66, 193, 0.16);
   color: #9b7fe4;
@@ -770,10 +832,10 @@ export default {
 
 .score-pill {
   display: inline-block;
-  min-width: 38px;
-  padding: 3px 6px;
+  min-width: 33px;
+  padding: 3px 4px;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 700;
   text-align: center;
 }
@@ -845,7 +907,7 @@ export default {
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: 'Courier New', monospace;
+  font-family: 'Kanit', 'Segoe UI', sans-serif;
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--text);
@@ -1048,6 +1110,18 @@ export default {
   gap: 8px;
 }
 
+.save-export-title,
+.action-buttons .btn {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.action-buttons .btn {
+  display: inline-flex;
+  gap: 7px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1198,6 +1272,100 @@ export default {
 .priority-red.selected > .bi { color: #ff7079; }
 .priority-orange.selected > .bi { color: #ffad63; }
 .priority-green.selected > .bi { color: #59d799; }
+
+.confirmation-backdrop {
+  z-index: 1080;
+}
+
+.confirmation-card {
+  width: min(90vw, 370px);
+  padding: 27px 23px 22px;
+  border-color: #315f9d;
+  border-radius: 14px;
+  background: var(--panel-bg);
+  color: var(--text);
+  text-align: center;
+  box-shadow: 0 22px 65px rgba(0, 0, 0, 0.68);
+  animation: confirmationPop 0.2s ease-out;
+}
+
+.confirmation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 15px;
+  border: 1px solid #63a6ed;
+  border-radius: 50%;
+  background: rgba(13, 110, 253, 0.14);
+  box-shadow: 0 0 0 8px rgba(13, 110, 253, 0.06);
+  color: #79b4ff;
+  font-size: 1.45rem;
+}
+
+.confirmation-card h5 {
+  margin: 0 0 7px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.confirmation-card p {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+}
+
+.confirmation-cancel,
+.confirmation-accept {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 108px;
+  min-height: 38px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirmation-cancel {
+  border: 1px solid var(--border);
+  background: var(--control-bg);
+  color: var(--text);
+}
+
+.confirmation-cancel:hover {
+  border-color: #6c7e90;
+  background: #253342;
+  color: #ffffff;
+}
+
+.confirmation-accept {
+  border: 1px solid #4ba97a;
+  background: #198754;
+  box-shadow: 0 5px 14px rgba(25, 135, 84, 0.3);
+  color: #ffffff;
+}
+
+.confirmation-accept:hover {
+  background: #24a064;
+  transform: translateY(-1px);
+}
+
+@keyframes confirmationPop {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 .recommendation-modal-card {
   width: min(92vw, 780px);

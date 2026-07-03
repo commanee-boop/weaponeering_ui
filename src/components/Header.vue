@@ -34,17 +34,14 @@
             <i class="bi bi-clock"></i><span>{{ currentDateTime }}</span>
           </div>
 
-          <div class="dropdown">
-            <button class="user-menu dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
-              <span class="user-avatar"><i class="bi bi-person"></i></span>
-              <span class="user-copy"><small>ผู้ใช้งาน</small><strong>{{ userName }}</strong></span>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-              <li><a class="dropdown-item" href="#">โปรไฟล์</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="#" @click="logout">ออกจากระบบ</a></li>
-            </ul>
+          <div class="user-menu">
+            <span class="user-avatar"><i class="bi bi-person"></i></span>
+            <span class="user-copy"><small>ผู้ใช้งาน</small><strong>{{ userName }}</strong></span>
           </div>
+          <button type="button" class="logout-button" title="ออกจากระบบ" aria-label="ออกจากระบบ" @click="logout">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+          </button>
 
         </div>
       </div>
@@ -179,15 +176,20 @@ export default {
 }
 
 .brand-copy strong {
-  color: var(--text);
-  font-size: 0.94rem;
-  line-height: 1.25;
-  letter-spacing: 0.055em;
+  color: #ffd84d;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  letter-spacing: 0.065em;
+  text-shadow: 0 1px 0 #7a4c00, 0 2px 7px rgba(255, 193, 7, 0.48);
 }
 
 .brand-copy small {
-  color: var(--muted);
-  font-size: 0.66rem;
+  color: #ffe78a;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+  text-shadow: 0 1px 0 #614000, 0 2px 6px rgba(255, 193, 7, 0.36);
 }
 
 .main-navigation {
@@ -234,7 +236,8 @@ export default {
 }
 
 .header-icon-button,
-.user-menu {
+.user-menu,
+.logout-button {
   border: 1px solid var(--border);
   background: var(--control-bg);
   color: var(--text);
@@ -280,6 +283,26 @@ export default {
   min-height: 40px;
   padding: 4px 10px 4px 5px;
   border-radius: 9px;
+}
+
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-color: rgba(220, 53, 69, 0.54);
+  border-radius: 9px;
+  color: #ef6b78;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.logout-button:hover {
+  border-color: #dc3545;
+  background: #dc3545;
+  color: #ffffff;
 }
 
 .user-avatar {
@@ -335,6 +358,10 @@ export default {
 
   .brand-copy small,
   .date-time-chip {
+    display: none;
+  }
+
+  .logout-button span {
     display: none;
   }
 

@@ -3,7 +3,7 @@
     <div class="container-fluid header-container">
       <router-link to="/analysis" class="system-brand">
         <span class="logo-frame">
-          <img src="/images/command-logo.png" alt="กองบัญชาการควบคุมการปฏิบัติทางอากาศ" class="system-logo" />
+          <img :src="logoUrl" alt="กองบัญชาการควบคุมการปฏิบัติทางอากาศ" class="system-logo" />
         </span>
         <span class="brand-copy">
           <strong>WEAPONEERING SYSTEM</strong>
@@ -58,6 +58,7 @@ export default {
     const currentDateTime = ref('')
     const userName = ref('Admin01')
     const isDarkMode = ref(true)
+    const logoUrl = `${import.meta.env.BASE_URL}images/command-logo.png`
     let intervalId = null
 
     const applyTheme = (theme) => {
@@ -108,6 +109,7 @@ export default {
       currentDateTime,
       userName,
       isDarkMode,
+      logoUrl,
       toggleTheme,
       logout
     }

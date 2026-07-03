@@ -4,11 +4,14 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 const cesiumSource = 'node_modules/cesium/Build/Cesium'
 const cesiumBaseUrl = 'cesium-static'
+const configuredBase = process.env.VITE_BASE_PATH || '/'
+const publicBase = configuredBase.endsWith('/') ? configuredBase : `${configuredBase}/`
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: publicBase,
   define: {
-    CESIUM_BASE_URL: JSON.stringify(`/${cesiumBaseUrl}`),
+    CESIUM_BASE_URL: JSON.stringify(`${publicBase}${cesiumBaseUrl}`),
   },
   plugins: [
     vue(),

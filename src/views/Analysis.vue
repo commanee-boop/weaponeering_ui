@@ -229,34 +229,43 @@ export default {
 
 @media (max-width: 992px) {
   .analysis-page {
-    height: auto;
+    height: 100dvh;
     min-height: 100dvh;
-    overflow-x: hidden;
-  }
-
-  .main-container,
-  .main-container.sidebar-collapsed,
-  .main-container.right-panel-collapsed {
-    display: flex;
-    flex-direction: column;
-    grid-template-columns: 1fr;
-    gap: 10px;
-    padding: 10px;
-    overflow: visible;
-  }
-
-  .sidebar-col,
-  .right-col {
-    width: 100%;
-    min-height: 620px;
-    max-height: none;
     overflow: hidden;
   }
 
-  .map-col {
-    width: 100%;
-    height: clamp(420px, 58dvh, 680px);
-    min-height: 420px;
+  .main-container {
+    display: grid;
+    grid-template-columns: 270px minmax(440px, 1fr) 310px;
+    gap: 10px;
+    padding: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .main-container.sidebar-collapsed {
+    grid-template-columns: 64px minmax(440px, 1fr) 310px;
+  }
+
+  .main-container.right-panel-collapsed {
+    grid-template-columns: 270px minmax(440px, 1fr) 64px;
+  }
+
+  .main-container.sidebar-collapsed.right-panel-collapsed {
+    grid-template-columns: 64px minmax(440px, 1fr) 64px;
+  }
+
+  .sidebar-col,
+  .map-col,
+  .right-col {
+    min-width: 0;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    scroll-snap-align: start;
   }
 
   .reset-notice {
@@ -268,11 +277,22 @@ export default {
 }
 
 @media (max-width: 600px) {
-  .main-container,
-  .main-container.sidebar-collapsed,
-  .main-container.right-panel-collapsed {
+  .main-container {
+    grid-template-columns: 270px minmax(420px, 1fr) 300px;
     gap: 8px;
     padding: 6px;
+  }
+
+  .main-container.sidebar-collapsed {
+    grid-template-columns: 64px minmax(420px, 1fr) 300px;
+  }
+
+  .main-container.right-panel-collapsed {
+    grid-template-columns: 270px minmax(420px, 1fr) 64px;
+  }
+
+  .main-container.sidebar-collapsed.right-panel-collapsed {
+    grid-template-columns: 64px minmax(420px, 1fr) 64px;
   }
 
   .sidebar-col,
@@ -281,14 +301,5 @@ export default {
     border-radius: 10px;
   }
 
-  .sidebar-col,
-  .right-col {
-    min-height: 72dvh;
-  }
-
-  .map-col {
-    height: 62dvh;
-    min-height: 390px;
-  }
 }
 </style>

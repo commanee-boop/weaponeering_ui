@@ -354,8 +354,27 @@ export default {
 }
 
 @media (max-width: 620px) {
+  .top-header {
+    min-height: 58px;
+    padding: 5px 0;
+  }
+
+  .header-container {
+    gap: 8px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
   .system-brand {
     min-width: 0;
+    max-width: calc(100% - 54px);
+    gap: 8px;
+  }
+
+  .logo-frame {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
   }
 
   .brand-copy small,
@@ -368,7 +387,60 @@ export default {
   }
 
   .brand-copy strong {
-    font-size: 0.75rem;
+    overflow: hidden;
+    max-width: 205px;
+    font-size: 0.82rem;
+    letter-spacing: 0.035em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-toggler {
+    width: 40px;
+    height: 40px;
+    padding: 5px 7px;
+  }
+
+  .navbar-collapse {
+    padding-top: 9px;
+  }
+
+  .main-navigation {
+    width: 100%;
+  }
+
+  .system-nav-link {
+    flex: 1 1 0;
+    min-height: 44px;
+    padding: 8px 7px;
+  }
+
+  .header-tools {
+    width: 100%;
+    justify-content: space-between;
+    gap: 7px;
+  }
+
+  .header-icon-button,
+  .logout-button {
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  .user-menu {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .user-copy {
+    min-width: 0;
+  }
+
+  .user-copy strong {
+    overflow: hidden;
+    display: block;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 </style>

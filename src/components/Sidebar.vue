@@ -1316,4 +1316,21 @@ export default {
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: #777777;
 }
+
+@media (max-width: 992px) {
+  .sidebar-container { height: 100%; border-right: 0; }
+  .sidebar-toggle, .sidebar-reset, .sidebar-reset-all { flex-basis: 38px; width: 38px; height: 38px; }
+  .sidebar-scroll { padding: 12px; }
+}
+
+@media (max-width: 600px) {
+  .sidebar-header { min-height: 58px; padding: 8px; }
+  .sidebar-brand-icon { flex-basis: 32px; width: 32px; height: 32px; }
+  .sidebar-brand-copy small { display: none; }
+  .sidebar-actions { gap: 4px; }
+  .sidebar-toggle, .sidebar-reset, .sidebar-reset-all { flex-basis: 36px; width: 36px; height: 36px; }
+  .sidebar-scroll { padding: 8px; }
+  .form-section { margin-bottom: 10px; padding: 10px; }
+  input, select, textarea, button { touch-action: manipulation; }
+}
 </style>

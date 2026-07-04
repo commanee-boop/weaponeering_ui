@@ -1670,4 +1670,27 @@ export default {
 .analysis-result::-webkit-scrollbar-thumb:hover {
   background: #777777;
 }
+
+@media (max-width: 992px) {
+  .right-panel { height: 100%; border-left: 0; }
+  .right-panel-toggle { flex-basis: 38px; width: 38px; height: 38px; }
+  .right-panel-scroll { padding: 12px; }
+  .recommendation-table { min-width: 560px; }
+}
+
+@media (max-width: 600px) {
+  .right-panel-header { min-height: 58px; padding: 8px 10px; }
+  .right-panel-brand-icon { flex-basis: 32px; width: 32px; height: 32px; }
+  .right-panel-brand-copy small { display: none; }
+  .right-panel-scroll { padding: 8px; }
+  .nav-tabs { position: sticky; top: 0; z-index: 12; gap: 3px; }
+  .nav-tabs .nav-link { min-height: 44px; padding: 7px 4px; font-size: 0.72rem; }
+  .modal-backdrop { padding: 8px; }
+  .modal-card, .save-modal-card, .recommendation-modal-card, .confirmation-card { width: 100%; max-width: 100%; max-height: calc(100dvh - 16px); }
+  .modal-header, .modal-body, .modal-footer, .recommendation-modal-body { padding: 10px; }
+  .modal-footer { flex-wrap: wrap; }
+  .recommendation-count { width: 100%; }
+  .recommendation-close-button { width: 100%; }
+  .export-format-menu button { min-height: 48px; }
+}
 </style>

@@ -686,5 +686,23 @@ export default {
 .right-menu-panel .layer-menu-header strong { color: #f3f9ff; font-size: 1rem; }
 :deep(.cesium-viewer), :deep(.cesium-viewer-cesiumWidgetContainer), :deep(.cesium-widget), :deep(.cesium-widget canvas) { width: 100%; height: 100%; }
 :deep(.cesium-viewer-bottom) { bottom: 2px; }
-@media (max-width: 600px) { .map-panel.expanded { inset: 8px; }.map-info small, .map-live { display: none; } }
+@media (max-width: 600px) {
+  .map-panel.expanded { inset: 6px; }
+  .map-toolbar { min-height: 52px; padding: 7px 8px; gap: 7px; }
+  .map-title-icon { width: 32px; height: 32px; }
+  .map-title small, .map-info small, .map-live { display: none; }
+  .map-title strong { font-size: 0.74rem; }
+  .map-expand-button { width: 38px; height: 38px; }
+  .map-container { min-height: 330px; }
+  .map-controls-left, .map-controls-right { top: 10px; gap: 4px; }
+  .map-controls-left { left: 7px; }
+  .map-controls-right { right: 7px; }
+  .layer-toggle-btn, .map-controls-right button, .control-btn { width: 40px; height: 40px; }
+  .control-label { display: none; }
+  .layer-menu-panel { width: min(205px, calc(100vw - 72px)); max-height: 72dvh; overflow-y: auto; }
+  .right-menu-panel { width: min(190px, calc(100vw - 68px)); max-height: 72dvh; overflow-y: auto; }
+  .coordinate-card { top: 9px; left: 56px; padding: 6px 8px; }
+  .map-source-badge { right: 7px; bottom: 7px; }
+  .map-info { flex-wrap: nowrap; gap: 10px; min-height: 38px; overflow-x: auto; padding: 7px 9px; white-space: nowrap; }
+}
 </style>

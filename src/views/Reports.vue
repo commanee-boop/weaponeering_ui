@@ -263,4 +263,15 @@ h2 {
 .fs-4 {
   color: #ffffff;
 }
+
+@media (max-width: 767.98px) {
+  .reports-page { height: auto; min-height: 100dvh; }
+  .reports-container { overflow: visible; padding: 10px 0 18px; }
+  .reports-container > .container { max-width: 100%; margin-top: 0 !important; padding-right: 8px; padding-left: 8px; }
+  h2 { margin-bottom: 12px !important; font-size: 1.15rem; }
+  .row { --bs-gutter-y: 12px; }
+  .card-body { padding: 10px; }
+  table { min-width: 720px; font-size: 0.82rem; }
+  table td:last-child { white-space: nowrap; }
+}
 </style>

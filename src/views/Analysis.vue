@@ -228,18 +228,67 @@ export default {
 }
 
 @media (max-width: 992px) {
+  .analysis-page {
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
   .main-container,
   .main-container.sidebar-collapsed,
   .main-container.right-panel-collapsed {
+    display: flex;
+    flex-direction: column;
     grid-template-columns: 1fr;
     gap: 10px;
+    padding: 10px;
+    overflow: visible;
   }
-  
+
+  .sidebar-col,
+  .right-col {
+    width: 100%;
+    min-height: 620px;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .map-col {
+    width: 100%;
+    height: clamp(420px, 58dvh, 680px);
+    min-height: 420px;
+  }
+
+  .reset-notice {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .main-container,
+  .main-container.sidebar-collapsed,
+  .main-container.right-panel-collapsed {
+    gap: 8px;
+    padding: 6px;
+  }
+
   .sidebar-col,
   .map-col,
   .right-col {
-    max-height: calc(100vh - 120px);
-    overflow: auto;
+    border-radius: 10px;
+  }
+
+  .sidebar-col,
+  .right-col {
+    min-height: 72dvh;
+  }
+
+  .map-col {
+    height: 62dvh;
+    min-height: 390px;
   }
 }
 </style>

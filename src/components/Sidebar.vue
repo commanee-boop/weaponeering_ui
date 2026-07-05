@@ -308,13 +308,13 @@
       <!-- 10. CEP Value -->
       <div class="form-section">
         <label class="form-label">
-          <span class="step-number">10</span> CEP
+          <span class="step-number">10</span> CEP (ft)
         </label>
         <div class="field-shell numeric-field">
           <i class="bi bi-bullseye"></i>
           <input
             type="text"
-            placeholder="กรอกค่า CEP"
+            placeholder="กรอกค่า CEP (ft)"
             :value="formData.cep"
             inputmode="numeric"
             pattern="[0-9]*"
@@ -416,7 +416,7 @@ export default {
     })))
     const desiredEffects = ref(mockAPI.desiredEffects.map((name, index) => ({
       name,
-      icon: ['bi-x-octagon', 'bi-slash-circle', 'bi-building-down'][index]
+      icon: ['bi-x-octagon', 'bi-slash-circle', 'bi-building-down', 'bi-exclamation-triangle'][index]
     })))
     const selectedTargetSourceData = computed(() =>
       formData.value.targetSources.find(source => source.name === formData.value.selectedTargetSource)

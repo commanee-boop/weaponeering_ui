@@ -44,7 +44,8 @@ export const mockAPI = {
   desiredEffects: [
     'สิ้นสภาพ (Destroy)',
     'สูญเสียการควบคุม',
-    'พังทลาย'
+    'พังทลาย',
+    'เสียหายบางส่วน'
   ],
 
   // Top 5 recommendations

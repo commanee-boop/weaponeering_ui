@@ -720,16 +720,16 @@ export default {
   color: #ffffff;
 }
 
-:global(body.dark-theme) .nav-tabs .nav-link.active,
-:global(body.light-theme) .nav-tabs .nav-link.active {
+:global(body.dark-theme .nav-tabs .nav-link.active),
+:global(body.light-theme .nav-tabs .nav-link.active) {
   border-color: transparent !important;
   background-color: #0d6efd !important;
   background-image: none !important;
   color: #ffffff !important;
 }
 
-:global(body.dark-theme) .nav-tabs .nav-link.active i,
-:global(body.light-theme) .nav-tabs .nav-link.active i {
+:global(body.dark-theme .nav-tabs .nav-link.active i),
+:global(body.light-theme .nav-tabs .nav-link.active i) {
   color: #ffffff !important;
 }
 
@@ -1027,6 +1027,9 @@ export default {
   min-height: 120px;
   padding: 10px 12px 12px;
 }
+
+:global(body.light-theme .confidence-card) { border-color: #bfd0df; background: radial-gradient(circle at 22% 85%, rgba(13, 110, 253, 0.08), transparent 44%), #ffffff; box-shadow: 0 7px 18px rgba(31, 65, 98, 0.12); }
+:global(body.light-theme .confidence-heading) { border-bottom-color: #d2dee9; color: #28465f; }
 
 .confidence-gauge {
   position: relative;

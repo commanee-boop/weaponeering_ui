@@ -895,7 +895,7 @@ export default {
   justify-self: end;
 }
 
-:global(body.light-theme) .target-source-option.active {
+:global(body.light-theme .target-source-option.active) {
   background: #fff2cc;
   border-color: #d9b44a;
 }
@@ -906,7 +906,7 @@ export default {
 }
 
 .target-type-list .target-source-option.active,
-:global(body.light-theme) .target-type-list .target-source-option.active {
+:global(body.light-theme .target-type-list .target-source-option.active) {
   background: #0d6efd;
   border-color: #4b91f7;
   color: #ffffff;
@@ -917,7 +917,7 @@ export default {
 }
 
 .themed-option-list .target-source-option.active,
-:global(body.light-theme) .themed-option-list .target-source-option.active {
+:global(body.light-theme .themed-option-list .target-source-option.active) {
   background: #0d6efd;
   border-color: #4b91f7;
   color: #ffffff;

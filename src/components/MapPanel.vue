@@ -679,6 +679,14 @@ export default {
 .annotation-color-option { justify-content: flex-start; }
 .annotation-color-dot { width: 14px; height: 14px; flex: 0 0 14px; border: 1px solid rgba(255,255,255,0.58); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,0.06); }
 
+:global(body.light-theme .map-panel) { border-color: #b7cadc; background: #ffffff; box-shadow: 0 7px 20px rgba(31, 65, 98, 0.13); }
+:global(body.light-theme .map-toolbar) { border-bottom-color: #c7d6e4; background: linear-gradient(90deg, #ffffff, #eaf2fa); }
+:global(body.light-theme .map-title strong) { color: #18344d; }
+:global(body.light-theme .map-title small) { color: #637b91; }
+:global(body.light-theme .map-expand-button) { border-color: #b9cad9; background: #ffffff; color: #315f88; }
+:global(body.light-theme .map-info) { border-top-color: #c7d6e4; background: #f3f7fb; color: #46627b; }
+:global(body.light-theme .map-info small) { color: #70879c; }
+
 /* Ensure buttons inside the right-menu-panel override the parent toolbar button rules */
 .right-menu-panel .right-menu-btn { width: 100% !important; }
 

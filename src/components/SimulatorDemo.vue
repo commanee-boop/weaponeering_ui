@@ -318,6 +318,14 @@ export default {
 .hud-top-left { top: 10px; left: 10px; }
 .hud-bottom-right { right: 10px; bottom: 10px; }
 .simulator-controls { display: flex; align-items: center; gap: 7px; padding: 9px 10px; border-top: 1px solid #294765; background: #091725; }
+
+:global(body.light-theme .simulator-window) { border-color: #b7cadc; background: #ffffff; box-shadow: 0 7px 20px rgba(31, 65, 98, 0.13); }
+:global(body.light-theme .simulator-header) { border-bottom-color: #c7d6e4; background: linear-gradient(90deg, #ffffff, #eaf2fa); }
+:global(body.light-theme .simulator-title strong) { color: #18344d; }
+:global(body.light-theme .simulator-title small),
+:global(body.light-theme .simulator-status) { color: #637b91; }
+:global(body.light-theme .simulator-icon-button) { border-color: #b9cad9; background: #ffffff; color: #315f88; }
+:global(body.light-theme .simulator-controls) { border-top-color: #c7d6e4; background: #f3f7fb; }
 .control-button { display: inline-flex; flex: 0 0 32px; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid #355574; border-radius: 7px; background: #102236; color: #c4d7ea; font-family: inherit; font-size: 0.82rem; }
 .control-button:hover { border-color: #5e92cc; background: #173451; color: white; }
 .control-button.primary { border-color: #0d6efd; background: #0d6efd; color: white; }

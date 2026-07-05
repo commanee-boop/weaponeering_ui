@@ -50,7 +50,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, onActivated } from 'vue'
 
 export default {
   name: 'Header',
@@ -101,6 +101,11 @@ export default {
       applyTheme(storedTheme === 'light' ? 'light' : 'dark')
     })
 
+    onActivated(() => {
+      const storedTheme = window.localStorage.getItem('app-theme')
+      applyTheme(storedTheme === 'light' ? 'light' : 'dark')
+    })
+
     onUnmounted(() => {
       if (intervalId) clearInterval(intervalId)
     })
@@ -127,11 +132,11 @@ export default {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
 }
 
-:global(body.dark-theme) .top-header {
+:global(body.dark-theme .top-header) {
   background: linear-gradient(90deg, #050d19, #081a31 55%, #071425) !important;
 }
 
-:global(body.light-theme) .top-header {
+:global(body.light-theme .top-header) {
   background: linear-gradient(90deg, #ffffff, #f2f6fc) !important;
 }
 
@@ -192,6 +197,16 @@ export default {
   line-height: 1.35;
   letter-spacing: 0.015em;
   text-shadow: 0 1px 0 #614000, 0 2px 6px rgba(255, 193, 7, 0.36);
+}
+
+:global(body.light-theme .brand-copy strong) {
+  color: #9a6200;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 5px rgba(154, 98, 0, 0.2);
+}
+
+:global(body.light-theme .brand-copy small) {
+  color: #6f5200;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .main-navigation {

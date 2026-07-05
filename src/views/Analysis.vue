@@ -214,6 +214,17 @@ export default {
   animation: resetNoticeIn 0.22s ease-out;
 }
 
+:global(body.light-theme .analysis-page) { background: #edf3f9; }
+:global(body.light-theme .main-container) { background: #edf3f9; }
+:global(body.light-theme .sidebar-col),
+:global(body.light-theme .map-col),
+:global(body.light-theme .right-col) {
+  border: 1px solid #cad7e4;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgba(31, 65, 98, 0.1);
+}
+:global(body.light-theme .reset-notice) { border-color: #75bd96; background: #ebf8f1; color: #147044; }
+
 @keyframes resetNoticeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }

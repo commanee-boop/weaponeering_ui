@@ -185,8 +185,9 @@
                 <div v-if="filteredReports.length === 0" class="alert alert-info">
                   ไม่พบข้อมูลที่ตรงกับตัวกรอง
                 </div>
-                <div v-else class="table-responsive">
-                  <table class="table data-log-table">
+                <div v-else class="report-table-block">
+                  <div class="table-responsive">
+                    <table class="table data-log-table">
                     <thead class="table-light">
                       <tr>
                         <th><i class="bi bi-list-ol"></i> ลำดับ</th>
@@ -199,8 +200,8 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="(report, idx) in filteredReports" :key="report.id" title="เปิดผลการวิเคราะห์" @click="openAnalysisResult(report)">
-                        <td class="sequence-cell"><span>{{ idx + 1 }}</span></td>
+                      <tr v-for="(report, idx) in paginatedReports" :key="report.id" title="เปิดผลการวิเคราะห์" @click="openAnalysisResult(report)">
+                        <td class="sequence-cell"><span>{{ ((currentPage - 1) * effectivePageSize) + idx + 1 }}</span></td>
                         <td class="target-cell">
                           <div class="target-data">
                             <span class="table-data-icon target-icon"><i :class="targetTypeIcon(report.type)"></i></span>
@@ -226,14 +227,30 @@
                               <li><button class="dropdown-item" type="button" @click.stop="exportReports('excel', report)"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Excel</button></li>
                             </ul>
                           </div>
-                          <button class="btn btn-sm btn-outline-danger" @click.stop="deleteReport(report.id)">
+                          <button class="btn btn-sm btn-outline-danger" @click.stop="requestDeleteReport(report)">
                             <i class="bi bi-trash"></i> ลบ
                           </button>
                           </div>
                         </td>
                       </tr>
                     </tbody>
-                  </table>
+                    </table>
+                  </div>
+                  <nav class="table-pagination" aria-label="เปลี่ยนหน้ารายการบันทึกข้อมูล">
+                    <div class="pagination-info">
+                      <span class="pagination-summary"><i class="bi bi-list-check"></i> แสดง {{ paginationStart }}–{{ paginationEnd }} จาก {{ filteredReports.length }} รายการ</span>
+                      <label class="page-size-control">
+                        <span>แสดงต่อหน้า</span>
+                        <input v-model.number="pageSize" class="pagination-size-input" type="number" min="1" max="100" inputmode="numeric" aria-label="จำนวนรายการต่อหน้า" @change="normalizePageSize" @keydown.enter.prevent="normalizePageSize" />
+                        <span>รายการ</span>
+                      </label>
+                    </div>
+                    <div class="pagination-buttons">
+                      <button type="button" :disabled="currentPage === 1" aria-label="หน้าก่อนหน้า" @click="setPage(currentPage - 1)"><i class="bi bi-chevron-left"></i></button>
+                      <button v-for="page in pageNumbers" :key="page" type="button" :class="{ active: currentPage === page }" :aria-current="currentPage === page ? 'page' : undefined" @click="setPage(page)">{{ page }}</button>
+                      <button type="button" :disabled="currentPage === totalPages" aria-label="หน้าถัดไป" @click="setPage(currentPage + 1)"><i class="bi bi-chevron-right"></i></button>
+                    </div>
+                  </nav>
                 </div>
               </div>
             </div>
@@ -289,13 +306,46 @@
             </footer>
           </section>
         </div>
+
+        <div v-if="reportPendingDelete" class="delete-modal-backdrop" @click.self="cancelDeleteReport">
+          <section class="delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title">
+            <button type="button" class="delete-modal-close" aria-label="ปิด" @click="cancelDeleteReport"><i class="bi bi-x-lg"></i></button>
+            <span class="delete-warning-icon"><i class="bi bi-trash3"></i></span>
+            <small>DELETE REPORT</small>
+            <h3 id="delete-confirm-title">ยืนยันการลบข้อมูล</h3>
+            <p>คุณต้องการลบรายการเป้าหมายนี้หรือไม่?</p>
+            <div class="delete-target-preview">
+              <span><i :class="targetTypeIcon(reportPendingDelete.type)"></i></span>
+              <div><strong>{{ reportPendingDelete.target }}</strong><small>TGT-{{ String(reportPendingDelete.id).padStart(3, '0') }} · {{ reportPendingDelete.type }}</small></div>
+            </div>
+            <div class="delete-warning-note"><i class="bi bi-exclamation-triangle"></i><span>ข้อมูลที่ลบแล้วจะไม่สามารถเรียกคืนได้</span></div>
+            <footer>
+              <button type="button" class="delete-cancel-button" @click="cancelDeleteReport"><i class="bi bi-x-circle"></i> ยกเลิก</button>
+              <button type="button" class="delete-confirm-button" @click="requestFinalDeleteConfirmation"><i class="bi bi-trash3"></i> ลบข้อมูล</button>
+            </footer>
+          </section>
+        </div>
+
+        <div v-if="showFinalDeleteConfirm" class="delete-modal-backdrop final-delete-backdrop" @click.self="closeFinalDeleteConfirmation">
+          <section class="delete-confirm-modal final-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="final-delete-title">
+            <span class="delete-warning-icon final-warning-icon"><i class="bi bi-exclamation-octagon"></i></span>
+            <small>FINAL CONFIRMATION</small>
+            <h3 id="final-delete-title">ยืนยันการลบอีกครั้ง</h3>
+            <p>โปรดตรวจสอบก่อนดำเนินการ รายการนี้จะถูกลบอย่างถาวร</p>
+            <div class="final-delete-target"><i class="bi bi-crosshair"></i><strong>{{ reportPendingDelete?.target }}</strong></div>
+            <footer>
+              <button type="button" class="delete-cancel-button" @click="closeFinalDeleteConfirmation"><i class="bi bi-arrow-left"></i> ย้อนกลับ</button>
+              <button type="button" class="delete-confirm-button final-confirm-button" @click="confirmDeleteReport"><i class="bi bi-check-lg"></i> ยืนยันลบถาวร</button>
+            </footer>
+          </section>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import Header from '../components/Header.vue'
 
 export default {
@@ -312,7 +362,37 @@ export default {
       { id: 5, date: '02/07/2569 11:05', dateValue: '2026-07-02', target: 'รันเวย์ E-09', source: 'เป้าหมายร่วม', type: 'รันเวย์', importance: 'medium', status: 'สมบูรณ์' },
       { id: 6, date: '01/07/2569 15:40', dateValue: '2026-07-01', target: 'คลังเชื้อเพลิง F-02', source: 'เป้าหมาย ทอ.', type: 'คลังเชื้อเพลิง', importance: 'key', status: 'กำลังดำเนินการ' },
       { id: 7, date: '30/06/2569 08:55', dateValue: '2026-06-30', target: 'เรดาร์ G-14', source: 'เป้าหมายทางลึก', type: 'เรดาร์', importance: 'medium', status: 'สมบูรณ์' },
-      { id: 8, date: '29/06/2569 17:10', dateValue: '2026-06-29', target: 'โรงเก็บเครื่องบิน H-06', source: 'อื่นๆ', type: 'โรงเก็บเครื่องบิน', importance: 'general', status: 'สมบูรณ์' }
+      { id: 8, date: '29/06/2569 17:10', dateValue: '2026-06-29', target: 'โรงเก็บเครื่องบิน H-06', source: 'อื่นๆ', type: 'โรงเก็บเครื่องบิน', importance: 'general', status: 'สมบูรณ์' },
+      { id: 9, date: '29/06/2569 14:25', dateValue: '2026-06-29', target: 'คลังอาวุธ I-11', source: 'เป้าหมาย กกล.สุรนารี', type: 'คลังอาวุธ', importance: 'medium', status: 'สมบูรณ์' },
+      { id: 10, date: '28/06/2569 09:40', dateValue: '2026-06-28', target: 'เรือตรวจการณ์ J-05', source: 'เป้าหมาย ทอ.', type: 'เรือ', importance: 'key', status: 'กำลังดำเนินการ' },
+      { id: 11, date: '27/06/2569 16:15', dateValue: '2026-06-27', target: 'อาคารสื่อสาร K-04', source: 'เป้าหมายทางลึก', type: 'อาคาร', importance: 'general', status: 'สมบูรณ์' },
+      { id: 12, date: '26/06/2569 11:50', dateValue: '2026-06-26', target: 'สะพานลำเลียง L-08', source: 'เป้าหมายร่วม', type: 'สะพาน', importance: 'medium', status: 'สมบูรณ์' },
+      { id: 13, date: '25/06/2569 07:35', dateValue: '2026-06-25', target: 'บังเกอร์ควบคุม M-02', source: 'อื่นๆ', type: 'บังเกอร์', importance: 'key', status: 'กำลังดำเนินการ' },
+      { id: 14, date: '24/06/2569 18:05', dateValue: '2026-06-24', target: 'รันเวย์สำรอง N-10', source: 'เป้าหมาย ทอ.', type: 'รันเวย์', importance: 'medium', status: 'สมบูรณ์' },
+      { id: 15, date: '23/06/2569 13:45', dateValue: '2026-06-23', target: 'สถานีเรดาร์ O-03', source: 'เป้าหมายทางลึก', type: 'เรดาร์', importance: 'key', status: 'สมบูรณ์' },
+      { id: 16, date: '22/06/2569 10:20', dateValue: '2026-06-22', target: 'คลังเชื้อเพลิง P-07', source: 'เป้าหมายร่วม', type: 'คลังเชื้อเพลิง', importance: 'general', status: 'สมบูรณ์' },
+      { id: 17, date: '21/06/2569 15:30', dateValue: '2026-06-21', target: 'โรงเก็บเครื่องบิน Q-12', source: 'เป้าหมาย กกล.สุรนารี', type: 'โรงเก็บเครื่องบิน', importance: 'medium', status: 'กำลังดำเนินการ' },
+      { id: 18, date: '20/06/2569 08:10', dateValue: '2026-06-20', target: 'เรือลำเลียง R-09', source: 'อื่นๆ', type: 'เรือ', importance: 'general', status: 'สมบูรณ์' },
+      { id: 19, date: '19/06/2569 14:40', dateValue: '2026-06-19', target: 'ศูนย์สั่งการ S-01', source: 'เป้าหมายร่วม', type: 'อาคาร', importance: 'key', status: 'สมบูรณ์' },
+      { id: 20, date: '18/06/2569 09:25', dateValue: '2026-06-18', target: 'สะพานยุทธวิธี T-06', source: 'เป้าหมายทางลึก', type: 'สะพาน', importance: 'medium', status: 'กำลังดำเนินการ' },
+      { id: 21, date: '17/06/2569 16:05', dateValue: '2026-06-17', target: 'บังเกอร์ใต้ดิน U-04', source: 'เป้าหมาย กกล.สุรนารี', type: 'บังเกอร์', importance: 'key', status: 'สมบูรณ์' },
+      { id: 22, date: '16/06/2569 11:30', dateValue: '2026-06-16', target: 'คูเลนแนวหน้า V-12', source: 'อื่นๆ', type: 'คูเลน', importance: 'general', status: 'สมบูรณ์' },
+      { id: 23, date: '15/06/2569 07:55', dateValue: '2026-06-15', target: 'รันเวย์หลัก W-02', source: 'เป้าหมาย ทอ.', type: 'รันเวย์', importance: 'key', status: 'กำลังดำเนินการ' },
+      { id: 24, date: '14/06/2569 18:20', dateValue: '2026-06-14', target: 'คลังเชื้อเพลิง X-08', source: 'เป้าหมายร่วม', type: 'คลังเชื้อเพลิง', importance: 'medium', status: 'สมบูรณ์' },
+      { id: 25, date: '13/06/2569 13:10', dateValue: '2026-06-13', target: 'เรดาร์เตือนภัย Y-05', source: 'เป้าหมายทางลึก', type: 'เรดาร์', importance: 'medium', status: 'สมบูรณ์' },
+      { id: 26, date: '12/06/2569 10:45', dateValue: '2026-06-12', target: 'โรงเก็บเครื่องบิน Z-03', source: 'เป้าหมาย ทอ.', type: 'โรงเก็บเครื่องบิน', importance: 'general', status: 'สมบูรณ์' },
+      { id: 27, date: '11/06/2569 15:35', dateValue: '2026-06-11', target: 'คลังอาวุธ AA-09', source: 'เป้าหมาย กกล.สุรนารี', type: 'คลังอาวุธ', importance: 'key', status: 'กำลังดำเนินการ' },
+      { id: 28, date: '10/06/2569 08:50', dateValue: '2026-06-10', target: 'เรือสนับสนุน AB-07', source: 'อื่นๆ', type: 'เรือ', importance: 'medium', status: 'สมบูรณ์' },
+      { id: 29, date: '09/06/2569 17:15', dateValue: '2026-06-09', target: 'อาคารควบคุม AC-11', source: 'เป้าหมายร่วม', type: 'อาคาร', importance: 'general', status: 'สมบูรณ์' },
+      { id: 30, date: '08/06/2569 12:40', dateValue: '2026-06-08', target: 'สะพานข้ามแม่น้ำ AD-02', source: 'เป้าหมาย ทอ.', type: 'สะพาน', importance: 'key', status: 'สมบูรณ์' },
+      { id: 31, date: '07/06/2569 06:30', dateValue: '2026-06-07', target: 'บังเกอร์บัญชาการ AE-10', source: 'เป้าหมายทางลึก', type: 'บังเกอร์', importance: 'medium', status: 'กำลังดำเนินการ' },
+      { id: 32, date: '06/06/2569 14:05', dateValue: '2026-06-06', target: 'คูเลนป้องกัน AF-06', source: 'เป้าหมาย กกล.สุรนารี', type: 'คูเลน', importance: 'general', status: 'สมบูรณ์' },
+      { id: 33, date: '05/06/2569 09:20', dateValue: '2026-06-05', target: 'รันเวย์ยุทธการ AG-04', source: 'เป้าหมายร่วม', type: 'รันเวย์', importance: 'medium', status: 'สมบูรณ์' },
+      { id: 34, date: '04/06/2569 16:55', dateValue: '2026-06-04', target: 'สถานีเรดาร์ AH-13', source: 'อื่นๆ', type: 'เรดาร์', importance: 'key', status: 'กำลังดำเนินการ' },
+      { id: 35, date: '03/06/2569 11:10', dateValue: '2026-06-03', target: 'คลังเชื้อเพลิง AI-05', source: 'เป้าหมาย ทอ.', type: 'คลังเชื้อเพลิง', importance: 'general', status: 'สมบูรณ์' },
+      { id: 36, date: '02/06/2569 07:45', dateValue: '2026-06-02', target: 'โรงเก็บเครื่องบิน AJ-08', source: 'เป้าหมายทางลึก', type: 'โรงเก็บเครื่องบิน', importance: 'medium', status: 'สมบูรณ์' },
+      { id: 37, date: '01/06/2569 13:30', dateValue: '2026-06-01', target: 'คลังอาวุธ AK-03', source: 'เป้าหมาย กกล.สุรนารี', type: 'คลังอาวุธ', importance: 'key', status: 'กำลังดำเนินการ' },
+      { id: 38, date: '31/05/2569 10:00', dateValue: '2026-05-31', target: 'เรือลาดตระเวน AL-11', source: 'เป้าหมายร่วม', type: 'เรือ', importance: 'general', status: 'สมบูรณ์' }
     ])
 
     const filters = ref({
@@ -325,6 +405,14 @@ export default {
     })
     const openFilterDropdown = ref('')
     const selectedReport = ref(null)
+    const reportPendingDelete = ref(null)
+    const showFinalDeleteConfirm = ref(false)
+    const currentPage = ref(1)
+    const pageSize = ref(10)
+    const effectivePageSize = computed(() => {
+      const value = Number(pageSize.value)
+      return Number.isFinite(value) && value >= 1 ? Math.min(100, Math.floor(value)) : 10
+    })
 
     const importanceLabels = {
       key: 'สำคัญสูง',
@@ -354,6 +442,24 @@ export default {
           && matchesQuery
       })
     })
+
+    const totalPages = computed(() => Math.max(1, Math.ceil(filteredReports.value.length / effectivePageSize.value)))
+    const paginatedReports = computed(() => {
+      const start = (currentPage.value - 1) * effectivePageSize.value
+      return filteredReports.value.slice(start, start + effectivePageSize.value)
+    })
+    const pageNumbers = computed(() => Array.from({ length: totalPages.value }, (_, index) => index + 1))
+    const paginationStart = computed(() => filteredReports.value.length ? ((currentPage.value - 1) * effectivePageSize.value) + 1 : 0)
+    const paginationEnd = computed(() => Math.min(currentPage.value * effectivePageSize.value, filteredReports.value.length))
+    const setPage = (page) => { currentPage.value = Math.min(Math.max(page, 1), totalPages.value) }
+    const normalizePageSize = () => {
+      const value = Number(pageSize.value)
+      pageSize.value = Number.isFinite(value) ? Math.min(100, Math.max(1, Math.floor(value))) : 10
+      currentPage.value = 1
+    }
+
+    watch(filters, () => { currentPage.value = 1 }, { deep: true })
+    watch(pageSize, () => { currentPage.value = 1 })
 
     const dashboardTotal = computed(() => filteredReports.value.length)
 
@@ -530,10 +636,23 @@ export default {
       if (report) openAnalysisResult(report)
     }
 
-    const deleteReport = (id) => {
-      if (confirm('คุณแน่ใจว่าต้องการลบรายงานนี้?')) {
-        reports.value = reports.value.filter(r => r.id !== id)
-      }
+    const requestDeleteReport = (report) => {
+      reportPendingDelete.value = report
+      showFinalDeleteConfirm.value = false
+    }
+    const cancelDeleteReport = () => {
+      showFinalDeleteConfirm.value = false
+      reportPendingDelete.value = null
+    }
+    const requestFinalDeleteConfirmation = () => {
+      if (reportPendingDelete.value) showFinalDeleteConfirm.value = true
+    }
+    const closeFinalDeleteConfirmation = () => { showFinalDeleteConfirm.value = false }
+    const confirmDeleteReport = () => {
+      if (!reportPendingDelete.value) return
+      reports.value = reports.value.filter(report => report.id !== reportPendingDelete.value.id)
+      showFinalDeleteConfirm.value = false
+      reportPendingDelete.value = null
     }
 
     const exportReports = (format, report = null) => {
@@ -561,7 +680,15 @@ export default {
     }
 
     const closeFilterDropdown = () => { openFilterDropdown.value = '' }
-    const handleKeydown = (event) => { if (event.key === 'Escape') closeAnalysisResult() }
+    const handleKeydown = (event) => {
+      if (event.key !== 'Escape') return
+      if (showFinalDeleteConfirm.value) {
+        closeFinalDeleteConfirmation()
+        return
+      }
+      closeAnalysisResult()
+      cancelDeleteReport()
+    }
     onMounted(() => {
       document.addEventListener('click', closeFilterDropdown)
       window.addEventListener('keydown', handleKeydown)
@@ -576,7 +703,17 @@ export default {
       filters,
       openFilterDropdown,
       selectedReport,
+      reportPendingDelete,
+      showFinalDeleteConfirm,
       filteredReports,
+      paginatedReports,
+      currentPage,
+      pageSize,
+      effectivePageSize,
+      totalPages,
+      pageNumbers,
+      paginationStart,
+      paginationEnd,
       sourceOptions,
       typeOptions,
       importanceCounts,
@@ -592,6 +729,8 @@ export default {
       summaryRingStyle,
       hasActiveFilters,
       clearFilters,
+      setPage,
+      normalizePageSize,
       formatDate,
       targetTypeIcon,
       importanceIcon,
@@ -604,7 +743,11 @@ export default {
       openAnalysisResult,
       closeAnalysisResult,
       viewReport,
-      deleteReport,
+      requestDeleteReport,
+      cancelDeleteReport,
+      requestFinalDeleteConfirmation,
+      closeFinalDeleteConfirmation,
+      confirmDeleteReport,
       exportReports,
       refreshData
     }
@@ -1706,6 +1849,21 @@ export default {
 .importance-badge.medium { background: rgba(255, 193, 7, 0.16); color: #ffd14f; }
 .importance-badge.general { background: rgba(25, 135, 84, 0.18); color: #55d497; }
 
+.report-table-block { overflow: hidden; border: 1px solid #2b4056; border-radius: 10px; background: #0c1723; }
+.report-table-block .table-responsive { overflow-x: auto; }
+.table-pagination { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-top: 1px solid #2b4056; background: #101e2d; }
+.pagination-info { display: flex; align-items: center; gap: 14px; }
+.pagination-summary { display: inline-flex; align-items: center; gap: 6px; color: #8299af; font-size: 0.66rem; white-space: nowrap; }
+.pagination-summary i { color: #6ea8fe; }
+.page-size-control { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: #8299af; font-size: 0.64rem; white-space: nowrap; }
+.pagination-size-input { width: 58px; height: 30px; padding: 3px 7px; border: 1px solid #3a536c; border-radius: 7px; outline: 0; background: #16283a; color: #e8f1fa; font-family: inherit; font-size: 0.7rem; font-weight: 700; text-align: center; }
+.pagination-size-input:focus { border-color: #4b91e2; box-shadow: 0 0 0 3px rgba(13,110,253,.14); }
+.pagination-buttons { display: flex; align-items: center; gap: 5px; }
+.pagination-buttons button { display: inline-grid; width: 31px; height: 31px; place-items: center; border: 1px solid #3a536c; border-radius: 8px; background: #16283a; color: #b9cad9; font-family: inherit; font-size: 0.68rem; font-weight: 700; transition: 0.16s ease; }
+.pagination-buttons button:hover:not(:disabled) { border-color: #4b91e2; background: #204a75; color: #fff; transform: translateY(-1px); }
+.pagination-buttons button.active { border-color: #5b9bea; background: #0d6efd; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.28); color: #fff; }
+.pagination-buttons button:disabled { cursor: not-allowed; opacity: 0.34; }
+
 .data-log-table {
   --bs-table-bg: transparent;
   --bs-table-color: #dce7f3;
@@ -2049,6 +2207,70 @@ export default {
 .analysis-result-footer > span { color: #8298ad; font-size: 0.65rem; }
 .analysis-result-footer button { padding: 7px 13px; border: 1px solid #3978ba; border-radius: 8px; background: #0d6efd; color: #fff; font-family: inherit; font-size: 0.7rem; font-weight: 700; }
 
+.delete-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1750;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(2, 8, 15, 0.82);
+  backdrop-filter: blur(7px);
+}
+
+.delete-confirm-modal {
+  position: relative;
+  width: min(420px, 100%);
+  padding: 24px;
+  overflow: hidden;
+  border: 1px solid #65404a;
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 0, rgba(220, 53, 69, 0.16), transparent 38%), #0b1724;
+  box-shadow: 0 24px 75px rgba(0, 0, 0, 0.68), 0 0 30px rgba(220, 53, 69, 0.1);
+  text-align: center;
+}
+
+.delete-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #4d6175;
+  border-radius: 8px;
+  background: #17293b;
+  color: #cbd8e5;
+}
+
+.delete-modal-close:hover { border-color: #dc3545; background: #dc3545; color: #fff; }
+.delete-warning-icon { display: inline-grid; width: 62px; height: 62px; margin-bottom: 10px; place-items: center; border: 1px solid rgba(255, 101, 116, 0.52); border-radius: 50%; background: rgba(220, 53, 69, 0.16); box-shadow: 0 0 0 8px rgba(220, 53, 69, 0.05), 0 0 24px rgba(220, 53, 69, 0.2); color: #ff6877; font-size: 1.45rem; }
+.delete-confirm-modal > small { display: block; color: #ff7180; font-size: 0.58rem; font-weight: 800; letter-spacing: 0.14em; }
+.delete-confirm-modal h3 { margin: 4px 0 5px; color: #f3f7fb; font-size: 1.15rem; }
+.delete-confirm-modal > p { margin: 0 0 13px; color: #8da1b5; font-size: 0.72rem; }
+
+.delete-target-preview { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid #30475d; border-radius: 10px; background: rgba(15, 33, 50, 0.86); text-align: left; }
+.delete-target-preview > span { display: inline-grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border-radius: 9px; background: rgba(13, 110, 253, 0.16); color: #72adf2; }
+.delete-target-preview > div { display: flex; min-width: 0; flex-direction: column; }
+.delete-target-preview strong { overflow: hidden; color: #f3f7fb; font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
+.delete-target-preview small { color: #738ba2; font-size: 0.6rem; }
+.delete-warning-note { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 10px 0 16px; color: #dbad60; font-size: 0.64rem; }
+.delete-warning-note i { color: #ffc451; }
+.delete-confirm-modal footer { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.delete-confirm-modal footer button { display: inline-flex; min-height: 39px; align-items: center; justify-content: center; gap: 6px; border-radius: 9px; font-family: inherit; font-size: 0.72rem; font-weight: 700; }
+.delete-cancel-button { border: 1px solid #4a6075; background: #17293b; color: #cbd7e2; }
+.delete-cancel-button:hover { border-color: #71899f; background: #233b51; color: #fff; }
+.delete-confirm-button { border: 1px solid #e44c5b; background: linear-gradient(135deg, #dc3545, #ad2532); box-shadow: 0 6px 16px rgba(220, 53, 69, 0.28); color: #fff; }
+.delete-confirm-button:hover { background: linear-gradient(135deg, #ef4a5a, #c72b39); transform: translateY(-1px); }
+.final-delete-backdrop { z-index: 1770; background: rgba(2, 6, 12, 0.9); }
+.final-delete-modal { width: min(390px, 100%); border-color: #8c3c47; box-shadow: 0 28px 85px rgba(0, 0, 0, 0.78), 0 0 35px rgba(220, 53, 69, 0.18); }
+.final-warning-icon { border-color: rgba(255, 80, 96, 0.68); background: rgba(220, 53, 69, 0.22); color: #ff5969; animation: finalWarningPulse 1.8s ease-in-out infinite; }
+.final-delete-target { display: inline-flex; max-width: 100%; align-items: center; gap: 7px; margin: 0 0 16px; padding: 7px 11px; border: 1px solid rgba(220, 53, 69, 0.35); border-radius: 999px; background: rgba(220, 53, 69, 0.09); color: #f1b0b7; }
+.final-delete-target strong { overflow: hidden; font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
+.final-confirm-button { background: linear-gradient(135deg, #ed3547, #9d1e2a); }
+@keyframes finalWarningPulse { 50% { box-shadow: 0 0 0 12px rgba(220, 53, 69, 0.02), 0 0 30px rgba(220, 53, 69, 0.3); } }
+
 .card {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   border: 2px solid #444444;
@@ -2189,6 +2411,10 @@ h2 {
   .card-body { padding: 10px; }
   table { min-width: 720px; font-size: 0.82rem; }
   table td:last-child { white-space: nowrap; }
+  .table-pagination { align-items: stretch; flex-direction: column; }
+  .pagination-info { justify-content: center; flex-wrap: wrap; }
+  .pagination-summary { justify-content: center; }
+  .pagination-buttons { justify-content: center; }
   .analysis-modal-backdrop { padding: 8px; }
   .analysis-result-modal { max-height: 94dvh; }
   .analysis-result-header, .analysis-result-footer { padding: 11px 12px; }
@@ -2197,4 +2423,236 @@ h2 {
   .analysis-detail-grid { grid-template-columns: 1fr; }
   .analysis-target-banner { align-items: flex-start; flex-wrap: wrap; }
 }
+
+/* Legacy scoped light rules are disabled; global rules below target the page correctly. */
+@media not all {
+:global(body.light-theme) .reports-page {
+  background: #edf3f9;
+  color: #172b3d;
+}
+
+:global(body.light-theme) .report-top-row,
+:global(body.light-theme) .dashboard-panel-top {
+  background: #edf3f9;
+}
+
+:global(body.light-theme) .report-heading {
+  margin: 5px 12px 5px 0;
+  padding-left: 16px;
+  border: 1px solid #c8d7e5;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(29, 65, 98, 0.1);
+}
+
+:global(body.light-theme) .report-heading h2 { color: #102a43; text-shadow: none; }
+:global(body.light-theme) .report-heading p { color: #60758a; }
+:global(body.light-theme) .report-kicker { color: #1769c2; text-shadow: none; }
+:global(body.light-theme) .dashboard-panel-top { border-left-color: #b9c9d9; }
+
+:global(body.light-theme) .dashboard-chart-group {
+  border-color: #c7d5e3;
+  background: linear-gradient(135deg, #ffffff, #eef5fb);
+  box-shadow: 0 5px 14px rgba(31, 65, 98, 0.1);
+}
+
+:global(body.light-theme) .legend-section-title { color: #46647f; }
+:global(body.light-theme) .legend-row,
+:global(body.light-theme) .source-summary-row {
+  border-color: #cfdae6;
+  background: #f8fbfe;
+  color: #243b53;
+}
+
+:global(body.light-theme) .dashboard-panel-top .legend-row strong,
+:global(body.light-theme) .source-summary-row strong { color: #102a43; }
+:global(body.light-theme) .dashboard-panel-top .legend-row small { color: #526d82; }
+:global(body.light-theme) .legend-updated { border-color: #cfc6ed; background: #f1edfb; }
+:global(body.light-theme) .legend-updated small { color: #6d6288; }
+:global(body.light-theme) .legend-updated strong { color: #46386b; }
+:global(body.light-theme) .source-ring-track { stroke: #d5e0ea; }
+:global(body.light-theme) .source-rings-center strong { color: #16324a; text-shadow: none; }
+:global(body.light-theme) .source-rings-center span { color: #60788e; }
+
+:global(body.light-theme) .filter-bar {
+  border-color: #c5d3e1;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(29, 65, 98, 0.1);
+}
+
+:global(body.light-theme) .filter-field label { color: #48627a; }
+:global(body.light-theme) .filter-field input,
+:global(body.light-theme) .filter-field select,
+:global(body.light-theme) .custom-filter-toggle,
+:global(body.light-theme) .date-input-wrap input {
+  border-color: #b9cad9;
+  background: #f8fbfe;
+  color: #19324a;
+  color-scheme: light;
+}
+
+:global(body.light-theme) .date-format-placeholder,
+:global(body.light-theme) .search-input-wrap > i { color: #667f96; }
+:global(body.light-theme) .date-input-wrap > i { color: #1769c2; text-shadow: none; }
+:global(body.light-theme) .filter-dropdown-menu {
+  border-color: #bdccda;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(26, 54, 82, 0.18);
+}
+
+:global(body.light-theme) .filter-dropdown-menu button { color: #263f57; }
+:global(body.light-theme) .filter-dropdown-menu button:hover,
+:global(body.light-theme) .filter-dropdown-menu button.active { background: #e5f0ff; color: #0d4f9f; }
+:global(body.light-theme) .filter-dropdown-menu button > i:first-child { color: #315f8c; }
+:global(body.light-theme) .clear-filter-button { border-color: #aebfd0; background: #eef3f8; color: #314b63; }
+:global(body.light-theme) .clear-filter-button:hover:not(:disabled) { border-color: #c83f4d; background: #dc3545; color: #ffffff; }
+
+:global(body.light-theme) .card {
+  border-color: #c6d4e1;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(29, 61, 92, 0.1);
+}
+
+:global(body.light-theme) .card-body { color: #1d344a; }
+:global(body.light-theme) .data-log-table { --bs-table-color: #20374d; }
+:global(body.light-theme) .data-log-table thead th { border-bottom-color: #b8c9d9; background: linear-gradient(180deg, #e9f2fb, #dce9f5); color: #36536d; }
+:global(body.light-theme) .data-log-table thead th > i { color: #2868a8; }
+:global(body.light-theme) .data-log-table tbody tr:nth-child(odd) { background: #ffffff; }
+:global(body.light-theme) .data-log-table tbody tr:nth-child(even) { background: #f5f9fc; }
+:global(body.light-theme) .data-log-table tbody tr:hover { background: #e7f1ff; }
+:global(body.light-theme) .data-log-table tbody td { border-bottom-color: #d8e2ec; color: #263f57; }
+:global(body.light-theme) .target-cell strong { color: #142f46; }
+:global(body.light-theme) .target-cell small { color: #6a8095; }
+:global(body.light-theme) .table-data-icon { color: #245e96; }
+:global(body.light-theme) .sequence-cell span { border-color: #a9bfd4; background: #eaf2fa; color: #245e96; }
+:global(body.light-theme) .date-pill { background: #e8f1fa; color: #315b83; }
+:global(body.light-theme) .row-actions .btn { background: #ffffff; }
+:global(body.light-theme) .row-actions .btn-outline-primary { border-color: #4b8fd4; color: #1769b0; }
+:global(body.light-theme) .row-actions .btn-outline-success { border-color: #54a77d; color: #187348; }
+:global(body.light-theme) .row-actions .btn-outline-danger { border-color: #d56b75; color: #b52d3a; }
+:global(body.light-theme) .row-actions .btn:hover { color: #ffffff; }
+:global(body.light-theme) .row-actions .btn-outline-primary:hover { background: #0d6efd; }
+:global(body.light-theme) .row-actions .btn-outline-success:hover { background: #198754; }
+:global(body.light-theme) .row-actions .btn-outline-danger:hover { background: #dc3545; }
+:global(body.light-theme) .row-actions .dropdown-menu { border-color: #bdccda; background: #ffffff; box-shadow: 0 10px 25px rgba(27, 55, 82, 0.18); }
+:global(body.light-theme) .row-actions .dropdown-item { color: #29445c; }
+:global(body.light-theme) .row-actions .dropdown-item:hover { background: #e7f1ff; color: #0d5cab; }
+:global(body.light-theme) .alert { border-color: #b8d7ee; background: #eef8ff; color: #31566f; }
+
+:global(body.light-theme) .analysis-result-modal { border-color: #afc4d8; background: #f4f8fc; }
+:global(body.light-theme) .analysis-result-header,
+:global(body.light-theme) .analysis-result-footer { border-color: #cbd8e4; background: #e8f1f9; }
+:global(body.light-theme) .analysis-modal-close { border-color: #afc2d3; background: #ffffff; color: #31516c; }
+:global(body.light-theme) .analysis-result-title h3,
+:global(body.light-theme) .analysis-target-banner strong,
+:global(body.light-theme) .analysis-metric-grid strong { color: #17324a; }
+:global(body.light-theme) .analysis-target-banner,
+:global(body.light-theme) .analysis-metric-grid article,
+:global(body.light-theme) .analysis-detail-card,
+:global(body.light-theme) .analysis-summary-card { border-color: #c4d3e1; background: #ffffff; }
+:global(body.light-theme) .analysis-detail-grid h4 { color: #24445f; }
+:global(body.light-theme) .analysis-detail-card dd { color: #203b52; }
+:global(body.light-theme) .analysis-summary-card p { color: #4d657b; }
+:global(body.light-theme) .analysis-detail-card dt { color: #637b91; }
+:global(body.light-theme) .analysis-detail-card dl > div { border-bottom-color: #dce5ed; }
+:global(body.light-theme) .analysis-target-banner > div > span,
+:global(body.light-theme) .analysis-target-banner small,
+:global(body.light-theme) .analysis-metric-grid small { color: #60788e; }
+:global(body.light-theme) .reports-container { scrollbar-color: #9bb0c3 #e4ecf3; }
+}
+</style>
+
+<style>
+body.light-theme .reports-page {
+  background: #edf3f9 !important;
+  color: #172b3d;
+}
+
+body.light-theme .reports-page .report-top-row,
+body.light-theme .reports-page .dashboard-panel-top { background: #edf3f9 !important; }
+body.light-theme .reports-page .report-heading { margin: 5px 12px 5px 0; padding-left: 16px; border: 1px solid #c8d7e5; border-radius: 12px; background: #fff !important; box-shadow: 0 6px 18px rgba(29,65,98,.1); }
+body.light-theme .reports-page .report-heading h2 { color: #102a43 !important; text-shadow: none; }
+body.light-theme .reports-page .report-heading p { color: #60758a; }
+body.light-theme .reports-page .report-kicker { color: #1769c2; text-shadow: none; }
+
+body.light-theme .reports-page .dashboard-chart-group { border-color: #c7d5e3; background: linear-gradient(135deg,#fff,#eef5fb) !important; box-shadow: 0 5px 14px rgba(31,65,98,.1); }
+body.light-theme .reports-page .legend-section-title { color: #46647f; }
+body.light-theme .reports-page .legend-row,
+body.light-theme .reports-page .source-summary-row { border-color: #cfdae6; background: #f8fbfe !important; color: #243b53; }
+body.light-theme .reports-page .legend-row strong,
+body.light-theme .reports-page .source-summary-row strong { color: #102a43; }
+body.light-theme .reports-page .legend-row small { color: #526d82; }
+body.light-theme .reports-page .legend-updated { border-color: #cfc6ed; background: #f1edfb !important; }
+body.light-theme .reports-page .legend-updated small { color: #6d6288; }
+body.light-theme .reports-page .legend-updated strong { color: #46386b; }
+body.light-theme .reports-page .source-ring-track { stroke: #d5e0ea; }
+body.light-theme .reports-page .source-rings-center strong { color: #16324a; text-shadow: none; }
+body.light-theme .reports-page .source-rings-center span { color: #60788e; }
+
+body.light-theme .reports-page .filter-bar { border-color: #c5d3e1; background: #fff !important; box-shadow: 0 6px 18px rgba(29,65,98,.1); }
+body.light-theme .reports-page .filter-field label { color: #48627a; }
+body.light-theme .reports-page .filter-field input,
+body.light-theme .reports-page .filter-field select,
+body.light-theme .reports-page .custom-filter-toggle,
+body.light-theme .reports-page .date-input-wrap input { border-color: #b9cad9 !important; background: #f8fbfe !important; color: #19324a !important; color-scheme: light; }
+body.light-theme .reports-page .date-format-placeholder,
+body.light-theme .reports-page .search-input-wrap > i { color: #667f96; }
+body.light-theme .reports-page .date-input-wrap > i { color: #1769c2; text-shadow: none; }
+body.light-theme .reports-page .filter-dropdown-menu { border-color: #bdccda; background: #fff !important; box-shadow: 0 12px 28px rgba(26,54,82,.18); }
+body.light-theme .reports-page .filter-dropdown-menu button { color: #263f57; }
+body.light-theme .reports-page .filter-dropdown-menu button:hover,
+body.light-theme .reports-page .filter-dropdown-menu button.active { background: #e5f0ff !important; color: #0d4f9f; }
+body.light-theme .reports-page .filter-dropdown-menu button > i:first-child { color: #315f8c; }
+body.light-theme .reports-page .clear-filter-button { border-color: #aebfd0; background: #eef3f8 !important; color: #314b63; }
+
+body.light-theme .reports-page .card { border-color: #c6d4e1 !important; background: #fff !important; box-shadow: 0 6px 20px rgba(29,61,92,.1); }
+body.light-theme .reports-page .card-body { background: #fff !important; color: #1d344a !important; }
+body.light-theme .reports-page .report-table-block { border-color: #c8d6e3; background: #fff; }
+body.light-theme .reports-page .table-pagination { border-top-color: #cfdae5; background: #f4f8fc; }
+body.light-theme .reports-page .pagination-summary { color: #526d82; }
+body.light-theme .reports-page .page-size-control { color: #526d82; }
+body.light-theme .reports-page .pagination-size-input { border: 1px solid #b8c9d8 !important; background: #fff !important; color: #24445f !important; }
+body.light-theme .reports-page .pagination-buttons button { border-color: #b8c9d8; background: #fff; color: #38556e; }
+body.light-theme .reports-page .pagination-buttons button:hover:not(:disabled) { border-color: #4b91e2; background: #e5f1ff; color: #0d5ba8; }
+body.light-theme .reports-page .pagination-buttons button.active { border-color: #0d6efd; background: #0d6efd; color: #fff; }
+body.dark-theme .reports-page .pagination-size-input { border: 1px solid #3a536c !important; background: #16283a !important; color: #e8f1fa !important; }
+body.light-theme .reports-page .data-log-table thead th { border-bottom-color: #b8c9d9 !important; background: linear-gradient(180deg,#e9f2fb,#dce9f5) !important; color: #36536d !important; }
+body.light-theme .reports-page .data-log-table thead th > i { color: #2868a8; }
+body.light-theme .reports-page .data-log-table tbody tr:nth-child(odd) { background: #fff !important; }
+body.light-theme .reports-page .data-log-table tbody tr:nth-child(even) { background: #f5f9fc !important; }
+body.light-theme .reports-page .data-log-table tbody tr:hover { background: #e7f1ff !important; }
+body.light-theme .reports-page .data-log-table tbody td { border-bottom-color: #d8e2ec !important; background: transparent !important; color: #263f57 !important; }
+body.light-theme .reports-page .target-cell strong { color: #142f46; }
+body.light-theme .reports-page .target-cell small { color: #6a8095; }
+body.light-theme .reports-page .table-data-icon { color: #245e96; }
+body.light-theme .reports-page .sequence-cell span { border-color: #a9bfd4; background: #eaf2fa; color: #245e96; }
+body.light-theme .reports-page .date-pill { background: #e8f1fa; color: #315b83; }
+
+body.light-theme .reports-page .row-actions .btn { background: #fff; }
+body.light-theme .reports-page .row-actions .dropdown-menu { border-color: #bdccda; background: #fff !important; }
+body.light-theme .reports-page .row-actions .dropdown-item { color: #29445c; }
+body.light-theme .reports-page .row-actions .dropdown-item:hover { background: #e7f1ff; color: #0d5cab; }
+
+body.light-theme .reports-page .analysis-result-modal { border-color: #afc4d8; background: #f4f8fc !important; }
+body.light-theme .reports-page .analysis-result-header,
+body.light-theme .reports-page .analysis-result-footer { border-color: #cbd8e4; background: #e8f1f9 !important; }
+body.light-theme .reports-page .analysis-target-banner,
+body.light-theme .reports-page .analysis-metric-grid article,
+body.light-theme .reports-page .analysis-detail-card,
+body.light-theme .reports-page .analysis-summary-card { border-color: #c4d3e1; background: #fff !important; }
+body.light-theme .reports-page .analysis-result-title h3,
+body.light-theme .reports-page .analysis-target-banner strong,
+body.light-theme .reports-page .analysis-metric-grid strong,
+body.light-theme .reports-page .analysis-detail-card dd { color: #17324a; }
+body.light-theme .reports-page .analysis-summary-card p { color: #4d657b; }
+body.light-theme .reports-page .delete-confirm-modal { border-color: #e1b7bc; background: radial-gradient(circle at 50% 0,rgba(220,53,69,.1),transparent 38%),#fff !important; box-shadow: 0 24px 70px rgba(40,65,88,.22); }
+body.light-theme .reports-page .delete-modal-close { border-color: #b9cad9; background: #f5f8fb; color: #38546d; }
+body.light-theme .reports-page .delete-confirm-modal h3 { color: #17324a; }
+body.light-theme .reports-page .delete-confirm-modal > p { color: #60778c; }
+body.light-theme .reports-page .delete-target-preview { border-color: #cbd8e4; background: #f5f9fc; }
+body.light-theme .reports-page .delete-target-preview strong { color: #17324a; }
+body.light-theme .reports-page .delete-target-preview small { color: #6b8297; }
+body.light-theme .reports-page .delete-cancel-button { border-color: #b3c4d3; background: #f1f5f9; color: #385268; }
+body.light-theme .reports-page .final-delete-modal { border-color: #e0a7ae; background: radial-gradient(circle at 50% 0,rgba(220,53,69,.12),transparent 40%),#fff !important; }
+body.light-theme .reports-page .final-delete-target { border-color: #e1b7bc; background: #fff3f4; color: #9b3440; }
 </style>

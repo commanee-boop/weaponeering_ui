@@ -185,7 +185,7 @@ export default {
 
       drawCrosshair(ctx, targetX, targetY, 13, '#ff5b63')
       ctx.fillStyle = '#ff7077'
-      ctx.font = '600 11px Kanit, sans-serif'
+      ctx.font = "600 11px 'TH Sarabun New', Sarabun, sans-serif"
       ctx.fillText('TARGET ALPHA', targetX + 20, targetY - 18)
 
       ctx.fillStyle = 'rgba(210, 232, 255, 0.8)'

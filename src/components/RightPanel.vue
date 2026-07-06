@@ -300,6 +300,7 @@
 <script>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import mockAPI from '../services/mockAPI'
+import { exportService } from '../services/exportService'
 import SimulatorDemo from './SimulatorDemo.vue'
 
 export default {
@@ -313,6 +314,10 @@ export default {
     targetPriority: {
       type: String,
       default: ''
+    },
+    formData: {
+      type: Object,
+      default: () => ({})
     }
   },
   emits: ['save-data', 'toggle-panel'],
@@ -439,81 +444,59 @@ export default {
       }
     }
 
-    const escapeHtml = (value) => String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;')
-
-    const createReportHtml = () => {
-      const rows = recommendations.value.map((item, index) => `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${escapeHtml(item.item)}</td>
-          <td>${escapeHtml(item.size)}</td>
-          <td>${escapeHtml(item.qty)}</td>
-          <td>${Number(item.pd).toFixed(2)}</td>
-          <td>${Number(item.pk).toFixed(2)}</td>
-        </tr>`).join('')
-
-      return `<!doctype html>
-        <html lang="th"><head><meta charset="utf-8"><title>Weaponeering Analysis Summary</title>
-        <style>
-          body{font-family:Kanit,Tahoma,sans-serif;color:#172033;padding:28px}h1{color:#174ea6;margin:0 0 4px}
-          .meta{color:#687386;margin-bottom:22px}table{width:100%;border-collapse:collapse;margin:12px 0 24px}
-          th,td{border:1px solid #aeb8c7;padding:8px;text-align:center}th{background:#174ea6;color:#fff}
-          td:nth-child(2){text-align:left}.analysis{white-space:pre-wrap;border-left:4px solid #174ea6;background:#f3f7fd;padding:14px}
-          @media print{body{padding:0}@page{size:A4 landscape;margin:14mm}}
-        </style></head><body>
-        <h1>Weaponeering Analysis Summary</h1>
-        <div class="meta">วันที่จัดทำ: ${escapeHtml(new Date().toLocaleString('th-TH'))}</div>
-        <h2>Recommendation</h2>
-        <table><thead><tr><th>ลำดับ</th><th>รายการ</th><th>ขนาด</th><th>จำนวน</th><th>Pd</th><th>Pk</th></tr></thead><tbody>${rows}</tbody></table>
-        <h2>AI Analysis</h2><div class="analysis">${escapeHtml(aiAnalysisText.value)}</div>
-        </body></html>`
+    const buildExportData = () => {
+      const date = new Date().toISOString().split('T')[0]
+      
+      return {
+        targetInfo: {
+          id: `TGT-${date}-${Math.floor(Math.random() * 1000)}`,
+          name: props.formData?.selectedTargetSource || 'ไม่ระบุ',
+          type: props.formData?.targetType || 'ไม่ระบุ',
+          structure: props.formData?.structureType || 'ไม่ระบุ',
+          strength: props.formData?.strengthLevel || 'ไม่ระบุ',
+          area: props.formData?.desiredEffect || 'ไม่ระบุ',
+          latitude: props.formData?.latitude || 'ไม่ระบุ',
+          longitude: props.formData?.longitude || 'ไม่ระบุ'
+        },
+        metrics: {
+          confidence: 85,
+          pk: (props.formData?.pk || 0.76).toFixed(2),
+          cep: props.formData?.cep || 10,
+          recommendation: '2,000'
+        },
+        recommendations: recommendations.value,
+        analysisText: aiAnalysisText.value,
+        priority: props.targetPriority || 'ทั่วไป',
+        generatedDate: new Date().toLocaleString('th-TH')
+      }
     }
 
-    const downloadDocument = (content, filename, mimeType) => {
-      const blob = new Blob(['\ufeff', content], { type: mimeType })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    }
-
-    const exportData = (format) => {
+    const exportData = async (format) => {
       showExportMenu.value = false
       const date = new Date().toISOString().split('T')[0]
-      const reportHtml = createReportHtml()
+      const exportData = buildExportData()
 
-      if (format === 'word') {
-        downloadDocument(reportHtml, `weaponeering_summary_${date}.doc`, 'application/msword;charset=utf-8')
-        return
-      }
-
-      if (format === 'excel') {
-        downloadDocument(reportHtml, `weaponeering_summary_${date}.xls`, 'application/vnd.ms-excel;charset=utf-8')
-        return
-      }
-
-      if (format === 'pdf') {
-        const printWindow = window.open('', '_blank', 'width=1100,height=760')
-        if (!printWindow) {
-          alert('กรุณาอนุญาต Pop-up เพื่อส่งออก PDF')
+      try {
+        if (format === 'pdf') {
+          await exportService.exportToPDF(exportData, `weaponeering_analysis_${date}.pdf`)
+          alert('ส่งออก PDF สำเร็จ')
           return
         }
-        printWindow.document.open()
-        printWindow.document.write(reportHtml)
-        printWindow.document.close()
-        window.setTimeout(() => {
-          printWindow.focus()
-          printWindow.print()
-        }, 350)
+
+        if (format === 'word') {
+          await exportService.exportToWord(exportData, `weaponeering_analysis_${date}.docx`)
+          alert('ส่งออก Word สำเร็จ')
+          return
+        }
+
+        if (format === 'excel') {
+          exportService.exportToExcel(exportData, `weaponeering_analysis_${date}.xlsx`)
+          alert('ส่งออก Excel สำเร็จ')
+          return
+        }
+      } catch (error) {
+        console.error('Export Error:', error)
+        alert(`เกิดข้อผิดพลาดในการส่งออก: ${error.message}`)
       }
     }
 
@@ -991,7 +974,7 @@ export default {
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: 'Kanit', 'Segoe UI', sans-serif;
+  font-family: inherit;
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--text);

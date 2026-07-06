@@ -443,7 +443,7 @@ export default {
         },
         label: {
           text: 'POI',
-          font: '600 12px Kanit, sans-serif',
+          font: "600 12px 'TH Sarabun New', Sarabun, sans-serif",
           fillColor: Color.YELLOW,
           outlineColor: Color.BLACK,
           outlineWidth: 3,
@@ -532,7 +532,7 @@ export default {
           },
           label: {
             text: 'TARGET',
-            font: '600 13px Kanit, sans-serif',
+            font: "600 13px 'TH Sarabun New', Sarabun, sans-serif",
             fillColor: Color.WHITE,
             outlineColor: Color.BLACK,
             outlineWidth: 3,

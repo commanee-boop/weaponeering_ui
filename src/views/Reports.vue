@@ -347,6 +347,7 @@
 <script>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import Header from '../components/Header.vue'
+import { exportService } from '../services/exportService'
 
 export default {
   name: 'ReportsView',
@@ -601,7 +602,7 @@ export default {
       }
     }
 
-    const openAnalysisResult = (report) => {
+    const buildAnalysisReport = (report) => {
       const recommendations = {
         อาคาร: '2,000 ปอนด์',
         สะพาน: '2,000 ปอนด์',
@@ -618,7 +619,7 @@ export default {
         บังเกอร์: 'สูญเสียการควบคุม',
         รันเวย์: 'สิ้นสภาพ (Destroy)'
       }
-      selectedReport.value = {
+      return {
         ...report,
         confidence: 82 + ((report.id * 3) % 14),
         recommendation: recommendations[report.type] || '1,000 ปอนด์',
@@ -627,6 +628,10 @@ export default {
         effect: effects[report.type] || 'สิ้นสภาพ (Destroy)',
         analysis: `เป้าหมาย ${report.target} ถูกจัดอยู่ในระดับ${importanceLabels[report.importance]} ระบบประเมินลักษณะโครงสร้างและข้อมูลแวดล้อมแล้ว พบว่าสามารถดำเนินการตามคำแนะนำโดยมีโอกาสบรรลุผลในระดับสูง`
       }
+    }
+
+    const openAnalysisResult = (report) => {
+      selectedReport.value = buildAnalysisReport(report)
     }
 
     const closeAnalysisResult = () => { selectedReport.value = null }
@@ -655,24 +660,76 @@ export default {
       reportPendingDelete.value = null
     }
 
-    const exportReports = (format, report = null) => {
-      const targetName = report ? `_${report.target.replaceAll(' ', '_')}` : ''
-      const filename = `reports${targetName}_${new Date().toISOString().split('T')[0]}`
-      let ext = ''
-      
-      switch(format) {
-        case 'pdf':
-          ext = '.pdf'
-          break
-        case 'word':
-          ext = '.docx'
-          break
-        case 'excel':
-          ext = '.xlsx'
-          break
+    const sanitizeFilename = (value) => String(value || 'report')
+      .trim()
+      .replace(/[\\/:*?"<>|]+/g, '')
+      .replace(/\s+/g, '_')
+
+    const buildReportExportData = (report) => {
+      const analysisReport = buildAnalysisReport(report)
+      const pk = Number(analysisReport.pk) || 0
+
+      return {
+        targetInfo: {
+          id: `TGT-${String(analysisReport.id).padStart(3, '0')}`,
+          name: analysisReport.target,
+          type: analysisReport.type,
+          structure: analysisReport.type,
+          strength: importanceLabels[analysisReport.importance] || analysisReport.importance,
+          area: analysisReport.source,
+          latitude: 'N/A',
+          longitude: 'N/A'
+        },
+        metrics: {
+          confidence: analysisReport.confidence,
+          pk: analysisReport.pk,
+          cep: analysisReport.cep,
+          recommendation: analysisReport.recommendation
+        },
+        recommendations: [
+          {
+            id: analysisReport.id,
+            item: analysisReport.recommendation,
+            size: analysisReport.effect,
+            qty: 1,
+            pd: Math.min(0.99, Math.max(0, pk - 0.08)),
+            pk
+          }
+        ],
+        analysisText: analysisReport.analysis,
+        priority: importanceLabels[analysisReport.importance] || analysisReport.importance,
+        generatedDate: new Date().toLocaleString('th-TH')
       }
-      
-      alert(`ส่งออกไฟล์: ${filename}${ext}`)
+    }
+
+    const exportReports = async (format, report = null) => {
+      if (!report) return
+
+      const date = new Date().toISOString().split('T')[0]
+      const filename = `report_${sanitizeFilename(report.target)}_${date}`
+      const exportData = buildReportExportData(report)
+
+      try {
+        if (format === 'pdf') {
+          await exportService.exportToPDF(exportData, `${filename}.pdf`)
+          alert('ส่งออก PDF สำเร็จ')
+          return
+        }
+
+        if (format === 'word') {
+          await exportService.exportToWord(exportData, `${filename}.docx`)
+          alert('ส่งออก Word สำเร็จ')
+          return
+        }
+
+        if (format === 'excel') {
+          exportService.exportToExcel(exportData, `${filename}.xlsx`)
+          alert('ส่งออก Excel สำเร็จ')
+        }
+      } catch (error) {
+        console.error('Report Export Error:', error)
+        alert(`เกิดข้อผิดพลาดในการส่งออก: ${error.message}`)
+      }
     }
 
     const refreshData = () => {

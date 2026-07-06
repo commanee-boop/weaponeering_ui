@@ -24,7 +24,7 @@ export default {
 html,
 body,
 #app {
-  font-family: 'Kanit', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'TH Sarabun New', 'Sarabun', 'Leelawadee UI', Tahoma, sans-serif;
 }
 
 body {

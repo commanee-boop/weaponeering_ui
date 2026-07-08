@@ -1,8 +1,3 @@
-import { jsPDF } from 'jspdf'
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, BorderStyle, AlignmentType } from 'docx'
-import * as XLSX from 'xlsx'
-
-const tableRow = (cells) => new TableRow({ children: cells })
 const reportFontFamily = "'TH Sarabun New', 'Sarabun', 'Leelawadee UI', Tahoma, sans-serif"
 const cleanRecommendation = value => String(value ?? 'N/A').replace(/\s*บาท\s*$/i, '').trim() || 'N/A'
 const escapeHtml = value => String(value ?? '')
@@ -26,16 +21,38 @@ const priorityLabels = {
   general: 'ทั่วไป'
 }
 
+const priorityAliases = {
+  'สำคัญสูง': 'red',
+  'ปานกลาง': 'orange',
+  'สำคัญ': 'orange',
+  'ทั่วไป': 'green'
+}
+
+const priorityColors = {
+  red: { pdf: '#d60000', docx: 'D60000' },
+  orange: { pdf: '#f28b2c', docx: 'F28B2C' },
+  green: { pdf: '#29a968', docx: '29A968' },
+  key: { pdf: '#d60000', docx: 'D60000' },
+  medium: { pdf: '#f28b2c', docx: 'F28B2C' },
+  general: { pdf: '#29a968', docx: '29A968' }
+}
+
+const priorityValue = data => String(data.priority || data.targetInfo?.priority || 'ทั่วไป').trim()
+const priorityKey = data => priorityAliases[priorityValue(data)] || priorityValue(data)
+
 const priorityLabel = data => {
-  const value = data.priority || data.targetInfo?.priority || 'ทั่วไป'
+  const value = priorityValue(data)
   return priorityLabels[value] || value
 }
+
+const priorityColor = data => priorityColors[priorityKey(data)] || priorityColors.green
 
 const createPdfReportHtml = data => {
   const targetInfo = data.targetInfo || {}
   const metrics = data.metrics || {}
   const recommendationValue = cleanRecommendation(metrics.recommendation)
   const recommendations = Array.isArray(data.recommendations) ? data.recommendations.slice(0, 5) : []
+  const stampColor = priorityColor(data).pdf
 
   const infoRows = [
     ['ID เป้าหมาย', targetInfo.id || 'N/A'],
@@ -44,6 +61,8 @@ const createPdfReportHtml = data => {
     ['ชนิดสิ่งก่อสร้าง', targetInfo.structure || 'N/A'],
     ['พื้นที่ทำการ', targetInfo.area || 'N/A'],
     ['ระดับความแข็งแรง', targetInfo.strength || 'N/A'],
+    ['รายละเอียดเป้าหมาย', targetInfo.details || 'N/A'],
+    ['รูปภาพประกอบ', targetInfo.imageName || 'N/A'],
     ['พิกัด (Lat/Lon)', `${targetInfo.latitude || 'N/A'} / ${targetInfo.longitude || 'N/A'}`]
   ]
 
@@ -74,7 +93,6 @@ const createPdfReportHtml = data => {
 
   return `
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
       .pdf-report {
         width: 794px;
         min-height: 1123px;
@@ -95,7 +113,7 @@ const createPdfReportHtml = data => {
         top: 42px;
         right: 58px;
         max-width: 220px;
-        color: #d60000;
+        color: ${stampColor};
         font-size: 28px;
         font-weight: 700;
         line-height: 1.1;
@@ -159,6 +177,8 @@ export const exportService = {
    */
   async exportToPDF(data, filename = 'weaponeering_analysis.pdf') {
     try {
+      const { jsPDF } = await import('jspdf')
+      const { default: html2canvas } = await import('html2canvas')
       const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -167,33 +187,45 @@ export const exportService = {
 
       const reportContainer = document.createElement('div')
       reportContainer.innerHTML = createPdfReportHtml(data)
-      reportContainer.style.position = 'fixed'
-      reportContainer.style.left = '-10000px'
+      reportContainer.style.position = 'absolute'
+      reportContainer.style.left = '0'
       reportContainer.style.top = '0'
       reportContainer.style.width = '794px'
       reportContainer.style.background = '#ffffff'
+      reportContainer.style.pointerEvents = 'none'
+      reportContainer.style.zIndex = '-1'
       document.body.appendChild(reportContainer)
 
       try {
         await waitForFonts()
-        await new Promise((resolve) => {
-          doc.html(reportContainer, {
-            x: 0,
-            y: 0,
-            width: 210,
-            windowWidth: 794,
-            autoPaging: 'text',
-            html2canvas: {
-              scale: 0.8,
-              backgroundColor: '#ffffff',
-              useCORS: true
-            },
-            callback: (pdf) => {
-              pdf.save(filename)
-              resolve()
-            }
-          })
+        const reportElement = reportContainer.querySelector('.pdf-report') || reportContainer
+        const canvas = await html2canvas(reportElement, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          logging: false,
+          windowWidth: 794
         })
+
+        const pageWidth = doc.internal.pageSize.getWidth()
+        const pageHeight = doc.internal.pageSize.getHeight()
+        const imageData = canvas.toDataURL('image/png')
+        const imageHeight = (canvas.height * pageWidth) / canvas.width
+
+        let yPosition = 0
+        let remainingHeight = imageHeight
+
+        doc.addImage(imageData, 'PNG', 0, yPosition, pageWidth, imageHeight)
+        remainingHeight -= pageHeight
+
+        while (remainingHeight > 0) {
+          yPosition -= pageHeight
+          doc.addPage()
+          doc.addImage(imageData, 'PNG', 0, yPosition, pageWidth, imageHeight)
+          remainingHeight -= pageHeight
+        }
+
+        doc.save(filename)
       } finally {
         document.body.removeChild(reportContainer)
       }
@@ -212,6 +244,19 @@ export const exportService = {
    */
   async exportToWord(data, filename = 'weaponeering_analysis.docx') {
     try {
+      const {
+        Document,
+        Packer,
+        Paragraph,
+        Table,
+        TableCell,
+        TableRow,
+        TextRun,
+        WidthType,
+        BorderStyle,
+        AlignmentType
+      } = await import('docx')
+      const tableRow = (cells) => new TableRow({ children: cells })
       const sections = []
 
       // Title
@@ -231,7 +276,7 @@ export const exportService = {
             new TextRun({
               text: `ระดับความสำคัญ: ${priorityLabel(data)}`,
               bold: true,
-              color: 'D60000',
+              color: priorityColor(data).docx,
               size: 44,
               font: 'TH Sarabun New'
             })
@@ -269,6 +314,8 @@ export const exportService = {
             tableRow([new TableCell({ children: [new Paragraph('ชนิดสิ่งก่อสร้าง')] }), new TableCell({ children: [new Paragraph(targetInfo.structure || 'N/A')] })]),
             tableRow([new TableCell({ children: [new Paragraph('พื้นที่ทำการ')] }), new TableCell({ children: [new Paragraph(targetInfo.area || 'N/A')] })]),
             tableRow([new TableCell({ children: [new Paragraph('ระดับความแข็งแรง')] }), new TableCell({ children: [new Paragraph(targetInfo.strength || 'N/A')] })]),
+            tableRow([new TableCell({ children: [new Paragraph('รายละเอียดเป้าหมาย')] }), new TableCell({ children: [new Paragraph(targetInfo.details || 'N/A')] })]),
+            tableRow([new TableCell({ children: [new Paragraph('รูปภาพประกอบ')] }), new TableCell({ children: [new Paragraph(targetInfo.imageName || 'N/A')] })]),
             tableRow([new TableCell({ children: [new Paragraph('พิกัด')] }), new TableCell({ children: [new Paragraph(`${targetInfo.latitude || 'N/A'} / ${targetInfo.longitude || 'N/A'}`)] })])
           ],
           borders: {
@@ -429,8 +476,9 @@ export const exportService = {
    * @param {Object} data - Analysis data
    * @param {string} filename - Output filename
    */
-  exportToExcel(data, filename = 'weaponeering_analysis.xlsx') {
+  async exportToExcel(data, filename = 'weaponeering_analysis.xlsx') {
     try {
+      const XLSX = await import('xlsx')
       const wb = XLSX.utils.book_new()
 
       // Sheet 1: Summary
@@ -468,6 +516,8 @@ export const exportService = {
           ['ชนิดสิ่งก่อสร้าง', data.targetInfo.structure || 'N/A'],
           ['พื้นที่ทำการ', data.targetInfo.area || 'N/A'],
           ['ระดับความแข็งแรง', data.targetInfo.strength || 'N/A'],
+          ['รายละเอียดเป้าหมาย', data.targetInfo.details || 'N/A'],
+          ['รูปภาพประกอบ', data.targetInfo.imageName || 'N/A'],
           ['พิกัด Latitude', data.targetInfo.latitude || 'N/A'],
           ['พิกัด Longitude', data.targetInfo.longitude || 'N/A']
         ]

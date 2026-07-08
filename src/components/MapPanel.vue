@@ -174,9 +174,15 @@ export default {
     let viewer = null
     let targetEntity = null
     let resizeObserver = null
-    let baseImageryLayer = null
     let bufferZoneEntities = []
+    let annotationEntities = []
     const featureEntities = {}
+    const annotationColors = {
+      red: '#ef4444',
+      yellow: '#facc15',
+      green: '#22c55e',
+      white: '#ffffff'
+    }
 
     const toggleLayerMenu = () => {
       layerMenuOpen.value = !layerMenuOpen.value
@@ -214,9 +220,32 @@ export default {
 
     const closeAllMenus = () => { closeLayerMenu(); closeRightMenu() }
 
-    const addAnnotationPin = (color) => {
-      console.log('Add annotation pin color', color)
-      // TODO: implement adding pin entity in Cesium
+    const addAnnotationPin = (colorKey) => {
+      if (!viewer) return
+      const color = Color.fromCssColorString(annotationColors[colorKey] || annotationColors.red)
+      const entity = viewer.entities.add({
+        name: `Annotation Pin ${annotationEntities.length + 1}`,
+        position: Cartesian3.fromDegrees(props.longitude, props.latitude, 18),
+        point: {
+          pixelSize: 12,
+          color,
+          outlineColor: Color.BLACK,
+          outlineWidth: 2,
+          heightReference: HeightReference.CLAMP_TO_GROUND
+        },
+        label: {
+          text: `PIN ${annotationEntities.length + 1}`,
+          font: "600 12px 'TH Sarabun New', Sarabun, sans-serif",
+          fillColor: color,
+          outlineColor: Color.BLACK,
+          outlineWidth: 3,
+          style: LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cartesian2(0, -20),
+          heightReference: HeightReference.CLAMP_TO_GROUND
+        }
+      })
+      annotationEntities.push(entity)
+      viewer.scene.requestRender()
       closeRightMenu()
     }
 
@@ -227,10 +256,12 @@ export default {
           return
         }
       }
-      console.log('Right menu action', menuKey, actionKey)
       if (menuKey === 'measure') {
-        // Measure button should do nothing for now
+        refreshMap()
         return
+      }
+      if (menuKey === 'info') {
+        showMapInfo()
       }
       closeRightMenu()
     }
@@ -251,7 +282,6 @@ export default {
 
       viewer.scene.imageryLayers.addImageryProvider(provider)
       sourceLabel.value = useSatellite ? 'ESRI SATELLITE' : 'NATURAL EARTH'
-      baseImageryLayer = provider
       viewer.scene.requestRender()
     }
 
@@ -278,14 +308,6 @@ export default {
       if (!layer) return
       layer.enabled = !layer.enabled
       updateFeatureVisibility()
-    }
-
-    const activateMeasure = () => {
-      console.log('Measure tool activated')
-    }
-
-    const activateAnnotation = () => {
-      console.log('Annotation tool activated')
     }
 
     const showMapInfo = () => {
@@ -580,6 +602,7 @@ export default {
     onUnmounted(() => {
       window.removeEventListener('keydown', handleKeydown)
       resizeObserver?.disconnect()
+      annotationEntities = []
       if (viewer && !viewer.isDestroyed()) viewer.destroy()
       document.body.style.overflow = ''
     })
@@ -599,8 +622,6 @@ export default {
       layers,
       toggleLayerMenu,
       toggleLayer,
-      activateMeasure,
-      activateAnnotation,
       activeRightMenu,
       rightMenus,
       toggleRightMenu,

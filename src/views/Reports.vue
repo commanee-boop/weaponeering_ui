@@ -219,7 +219,7 @@
                           </button>
                           <div class="dropdown">
                             <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" @click.stop>
-                              <i class="bi bi-download"></i> ส่งออก
+                              <i class="bi bi-download"></i> นำออก
                             </button>
                             <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" @click.stop>
                               <li><button class="dropdown-item" type="button" @click.stop="exportReports('pdf', report)"><i class="bi bi-file-pdf me-2"></i>PDF</button></li>
@@ -712,23 +712,23 @@ export default {
       try {
         if (format === 'pdf') {
           await exportService.exportToPDF(exportData, `${filename}.pdf`)
-          alert('ส่งออก PDF สำเร็จ')
+          alert('นำออก PDF สำเร็จ')
           return
         }
 
         if (format === 'word') {
           await exportService.exportToWord(exportData, `${filename}.docx`)
-          alert('ส่งออก Word สำเร็จ')
+          alert('นำออก Word สำเร็จ')
           return
         }
 
         if (format === 'excel') {
-          exportService.exportToExcel(exportData, `${filename}.xlsx`)
-          alert('ส่งออก Excel สำเร็จ')
+          await exportService.exportToExcel(exportData, `${filename}.xlsx`)
+          alert('นำออก Excel สำเร็จ')
         }
       } catch (error) {
         console.error('Report Export Error:', error)
-        alert(`เกิดข้อผิดพลาดในการส่งออก: ${error.message}`)
+        alert(`เกิดข้อผิดพลาดในการนำออก: ${error.message}`)
       }
     }
 

@@ -337,8 +337,8 @@ export default {
     const savedRecordsCount = ref(0)
     const DB_KEY = 'weaponeering_records'
 
-    const selectRecommendation = (recommendation) => {
-      console.log('Selected recommendation:', recommendation)
+    const selectRecommendation = () => {
+      showRecommendationModal.value = true
     }
 
     const showAllDetails = () => {
@@ -455,6 +455,8 @@ export default {
           structure: props.formData?.structureType || 'ไม่ระบุ',
           strength: props.formData?.strengthLevel || 'ไม่ระบุ',
           area: props.formData?.desiredEffect || 'ไม่ระบุ',
+          details: props.formData?.targetDetails || 'ไม่ระบุ',
+          imageName: props.formData?.imageName || 'ไม่ระบุ',
           latitude: props.formData?.latitude || 'ไม่ระบุ',
           longitude: props.formData?.longitude || 'ไม่ระบุ'
         },
@@ -490,7 +492,7 @@ export default {
         }
 
         if (format === 'excel') {
-          exportService.exportToExcel(exportData, `weaponeering_analysis_${date}.xlsx`)
+          await exportService.exportToExcel(exportData, `weaponeering_analysis_${date}.xlsx`)
           alert('ส่งออก Excel สำเร็จ')
           return
         }

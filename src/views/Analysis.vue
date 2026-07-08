@@ -82,16 +82,16 @@ export default {
     }
 
     const handleAIAnalysis = (analysisData) => {
-      console.log('AI Analysis started with data:', analysisData)
       currentLatitude.value = analysisData.latitude || currentLatitude.value
       currentLongitude.value = analysisData.longitude || currentLongitude.value
       currentTargetPriority.value = analysisData.targetPriority || currentTargetPriority.value
       currentFormData.value = analysisData
-      alert('AI Analysis completed: ' + JSON.stringify(analysisData, null, 2))
+      displayResetNotice('วิเคราะห์ข้อมูลและอัปเดตแผนที่แล้ว')
     }
 
     const handleSaveData = (formData) => {
-      console.log('Saving data:', formData)
+      currentFormData.value = formData || {}
+      displayResetNotice('บันทึกข้อมูลในเครื่องแล้ว')
     }
 
     const displayResetNotice = message => {

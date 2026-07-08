@@ -535,10 +535,13 @@ export default {
         return
       }
       emit('ai-analysis', {
+        selectedTargetSource: formData.value.selectedTargetSource,
         targetType: formData.value.targetType,
         targetPriority: formData.value.targetPriority,
         structureType: formData.value.structureType,
         strengthLevel: formData.value.strengthLevel,
+        targetDetails: formData.value.targetDetails,
+        imageName: formData.value.imageName,
         desiredEffect: formData.value.desiredEffect,
         latitude: formData.value.latitude,
         longitude: formData.value.longitude,

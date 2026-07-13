@@ -217,14 +217,27 @@
                           <button class="btn btn-sm btn-outline-primary" @click.stop="viewReport(report.id)">
                             <i class="bi bi-eye"></i> ดู
                           </button>
-                          <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" @click.stop>
+                          <div class="dropdown report-export-dropdown">
+                            <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="ส่งออกรายงาน" @click.stop>
                               <i class="bi bi-download"></i> นำออก
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" @click.stop>
-                              <li><button class="dropdown-item" type="button" @click.stop="exportReports('pdf', report)"><i class="bi bi-file-pdf me-2"></i>PDF</button></li>
-                              <li><button class="dropdown-item" type="button" @click.stop="exportReports('word', report)"><i class="bi bi-file-word me-2"></i>Word</button></li>
-                              <li><button class="dropdown-item" type="button" @click.stop="exportReports('excel', report)"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Excel</button></li>
+                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end export-format-dropdown" @click.stop>
+                              <li class="export-dropdown-header">
+                                <strong>รูปแบบเอกสาร</strong>
+                                <small>เลือกประเภทไฟล์สำหรับรายงานฉบับทางการ</small>
+                              </li>
+                              <li>
+                                <button class="dropdown-item export-format-option" type="button" @click.stop="exportReports('pdf', report)">
+                                  <span class="export-format-icon pdf"><i class="bi bi-file-earmark-pdf"></i></span>
+                                  <span><strong>PDF</strong><small>เอกสารพร้อมพิมพ์และจัดเก็บ</small></span>
+                                </button>
+                              </li>
+                              <li>
+                                <button class="dropdown-item export-format-option" type="button" @click.stop="exportReports('word', report)">
+                                  <span class="export-format-icon word"><i class="bi bi-file-earmark-word"></i></span>
+                                  <span><strong>Word</strong><small>เอกสารสำหรับแก้ไขและนำเสนอ</small></span>
+                                </button>
+                              </li>
                             </ul>
                           </div>
                           <button class="btn btn-sm btn-outline-danger" @click.stop="requestDeleteReport(report)">
@@ -677,8 +690,11 @@ export default {
           structure: analysisReport.type,
           strength: importanceLabels[analysisReport.importance] || analysisReport.importance,
           area: analysisReport.source,
-          latitude: 'N/A',
-          longitude: 'N/A'
+          details: analysisReport.details || analysisReport.analysis || 'N/A',
+          imageName: analysisReport.imageName || 'N/A',
+          imagePreview: analysisReport.imagePreview || '',
+          latitude: analysisReport.latitude || 'N/A',
+          longitude: analysisReport.longitude || 'N/A'
         },
         metrics: {
           confidence: analysisReport.confidence,
@@ -722,10 +738,7 @@ export default {
           return
         }
 
-        if (format === 'excel') {
-          await exportService.exportToExcel(exportData, `${filename}.xlsx`)
-          alert('นำออก Excel สำเร็จ')
-        }
+        alert('ไม่พบรูปแบบไฟล์ที่รองรับ')
       } catch (error) {
         console.error('Report Export Error:', error)
         alert(`เกิดข้อผิดพลาดในการนำออก: ${error.message}`)
@@ -2120,19 +2133,88 @@ export default {
   gap: 4px;
 }
 
-.row-actions .dropdown-menu {
-  min-width: 135px;
+.row-actions .export-format-dropdown {
+  min-width: 260px;
+  padding: 8px;
   border: 1px solid #3b5269;
+  border-radius: 7px;
   background: #101d2c;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
 }
 
-.row-actions .dropdown-item {
+.export-dropdown-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(184, 204, 225, 0.18);
+}
+
+.export-dropdown-header strong {
+  color: #f4f8fc;
+  font-size: 0.82rem;
+}
+
+.export-dropdown-header small {
+  color: #9eb3c8;
+  font-size: 0.66rem;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.row-actions .export-format-option {
+  display: grid;
+  min-height: 50px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: 6px;
   color: #dfeaf6;
   font-size: 0.78rem;
 }
 
-.row-actions .dropdown-item:hover {
+.row-actions .export-format-option > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.16;
+}
+
+.row-actions .export-format-option strong {
+  color: #f7fbff;
+  font-size: 0.82rem;
+}
+
+.row-actions .export-format-option small {
+  margin-top: 3px;
+  color: #a8bbcf;
+  font-size: 0.66rem;
+  white-space: normal;
+}
+
+.export-format-icon {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-size: 1rem;
+}
+
+.export-format-icon.pdf {
+  background: rgba(220, 53, 69, 0.16);
+  color: #ff7784;
+}
+
+.export-format-icon.word {
+  background: rgba(47, 109, 179, 0.18);
+  color: #6fb2ff;
+}
+
+.row-actions .export-format-option:hover {
   background: rgba(13, 110, 253, 0.2);
   color: #ffffff;
 }
@@ -2591,9 +2673,14 @@ h2 {
 :global(body.light-theme) .row-actions .btn-outline-primary:hover { background: #0d6efd; }
 :global(body.light-theme) .row-actions .btn-outline-success:hover { background: #198754; }
 :global(body.light-theme) .row-actions .btn-outline-danger:hover { background: #dc3545; }
-:global(body.light-theme) .row-actions .dropdown-menu { border-color: #bdccda; background: #ffffff; box-shadow: 0 10px 25px rgba(27, 55, 82, 0.18); }
-:global(body.light-theme) .row-actions .dropdown-item { color: #29445c; }
-:global(body.light-theme) .row-actions .dropdown-item:hover { background: #e7f1ff; color: #0d5cab; }
+:global(body.light-theme) .row-actions .export-format-dropdown { border-color: #bdccda; background: #ffffff; box-shadow: 0 10px 25px rgba(27, 55, 82, 0.18); }
+:global(body.light-theme) .export-dropdown-header { border-bottom-color: #d6e1ec; }
+:global(body.light-theme) .export-dropdown-header strong,
+:global(body.light-theme) .row-actions .export-format-option strong { color: #17324a; }
+:global(body.light-theme) .export-dropdown-header small,
+:global(body.light-theme) .row-actions .export-format-option small { color: #647c92; }
+:global(body.light-theme) .row-actions .export-format-option { color: #29445c; }
+:global(body.light-theme) .row-actions .export-format-option:hover { background: #e7f1ff; color: #0d5cab; }
 :global(body.light-theme) .alert { border-color: #b8d7ee; background: #eef8ff; color: #31566f; }
 
 :global(body.light-theme) .analysis-result-modal { border-color: #afc4d8; background: #f4f8fc; }
@@ -2686,9 +2773,14 @@ body.light-theme .reports-page .sequence-cell span { border-color: #a9bfd4; back
 body.light-theme .reports-page .date-pill { background: #e8f1fa; color: #315b83; }
 
 body.light-theme .reports-page .row-actions .btn { background: #fff; }
-body.light-theme .reports-page .row-actions .dropdown-menu { border-color: #bdccda; background: #fff !important; }
-body.light-theme .reports-page .row-actions .dropdown-item { color: #29445c; }
-body.light-theme .reports-page .row-actions .dropdown-item:hover { background: #e7f1ff; color: #0d5cab; }
+body.light-theme .reports-page .row-actions .export-format-dropdown { border-color: #bdccda; background: #fff !important; }
+body.light-theme .reports-page .export-dropdown-header { border-bottom-color: #d6e1ec; }
+body.light-theme .reports-page .export-dropdown-header strong,
+body.light-theme .reports-page .row-actions .export-format-option strong { color: #17324a; }
+body.light-theme .reports-page .export-dropdown-header small,
+body.light-theme .reports-page .row-actions .export-format-option small { color: #647c92; }
+body.light-theme .reports-page .row-actions .export-format-option { color: #29445c; }
+body.light-theme .reports-page .row-actions .export-format-option:hover { background: #e7f1ff; color: #0d5cab; }
 
 body.light-theme .reports-page .analysis-result-modal { border-color: #afc4d8; background: #f4f8fc !important; }
 body.light-theme .reports-page .analysis-result-header,

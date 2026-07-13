@@ -542,6 +542,7 @@ export default {
         strengthLevel: formData.value.strengthLevel,
         targetDetails: formData.value.targetDetails,
         imageName: formData.value.imageName,
+        imagePreview: formData.value.imagePreview,
         desiredEffect: formData.value.desiredEffect,
         latitude: formData.value.latitude,
         longitude: formData.value.longitude,

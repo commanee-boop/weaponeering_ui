@@ -185,17 +185,17 @@
               <i class="bi bi-chevron-down export-chevron" :class="{ open: showExportMenu }"></i>
             </button>
             <div v-if="showExportMenu" class="export-format-menu" role="menu">
-              <button type="button" role="menuitem" @click="exportData('word')">
-                <span class="export-format-icon word"><i class="bi bi-file-earmark-word"></i></span>
-                <span><strong>Word</strong><small>เอกสาร .doc</small></span>
-              </button>
-              <button type="button" role="menuitem" @click="exportData('excel')">
-                <span class="export-format-icon excel"><i class="bi bi-file-earmark-excel"></i></span>
-                <span><strong>Excel</strong><small>ตารางข้อมูล .xls</small></span>
-              </button>
+              <div class="export-format-heading">
+                <strong>รูปแบบเอกสาร</strong>
+                <small>เลือกไฟล์สำหรับจัดเก็บหรือเสนอรายงาน</small>
+              </div>
               <button type="button" role="menuitem" @click="exportData('pdf')">
                 <span class="export-format-icon pdf"><i class="bi bi-file-earmark-pdf"></i></span>
-                <span><strong>PDF</strong><small>พิมพ์หรือบันทึก PDF</small></span>
+                <span><strong>PDF</strong><small>เอกสารพร้อมพิมพ์และจัดเก็บ</small></span>
+              </button>
+              <button type="button" role="menuitem" @click="exportData('word')">
+                <span class="export-format-icon word"><i class="bi bi-file-earmark-word"></i></span>
+                <span><strong>Word</strong><small>เอกสารสำหรับแก้ไขและนำเสนอ</small></span>
               </button>
             </div>
           </div>
@@ -457,6 +457,7 @@ export default {
           area: props.formData?.desiredEffect || 'ไม่ระบุ',
           details: props.formData?.targetDetails || 'ไม่ระบุ',
           imageName: props.formData?.imageName || 'ไม่ระบุ',
+          imagePreview: props.formData?.imagePreview || '',
           latitude: props.formData?.latitude || 'ไม่ระบุ',
           longitude: props.formData?.longitude || 'ไม่ระบุ'
         },
@@ -491,11 +492,7 @@ export default {
           return
         }
 
-        if (format === 'excel') {
-          await exportService.exportToExcel(exportData, `weaponeering_analysis_${date}.xlsx`)
-          alert('ส่งออก Excel สำเร็จ')
-          return
-        }
+        alert('ไม่พบรูปแบบไฟล์ที่รองรับ')
       } catch (error) {
         console.error('Export Error:', error)
         alert(`เกิดข้อผิดพลาดในการส่งออก: ${error.message}`)
@@ -1220,21 +1217,42 @@ export default {
   bottom: calc(100% + 7px);
   left: 0;
   z-index: 30;
-  padding: 6px;
+  padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: 8px;
   background: var(--panel-bg);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.48);
 }
 
+.export-format-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 8px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.export-format-heading strong {
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.export-format-heading small {
+  color: var(--muted);
+  font-size: 0.65rem;
+  line-height: 1.2;
+}
+
 .export-format-menu button {
   display: flex;
+  min-height: 50px;
   width: 100%;
   align-items: center;
   gap: 10px;
   padding: 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--text);
   text-align: left;
@@ -1276,11 +1294,6 @@ export default {
 .export-format-icon.word {
   background: rgba(47, 109, 179, 0.18);
   color: #5aa4f2;
-}
-
-.export-format-icon.excel {
-  background: rgba(33, 163, 102, 0.18);
-  color: #35c985;
 }
 
 .export-format-icon.pdf {

@@ -177,6 +177,31 @@ export default {
     let baseImageryLayer = null
     let bufferZoneEntities = []
     const featureEntities = {}
+    const mapSnapshotStorageKey = 'weaponeering.latestMapSnapshot'
+    let snapshotTimer = null
+
+    const captureMapSnapshot = () => {
+      if (!viewer) return
+      try {
+        const snapshot = {
+          image: viewer.scene.canvas.toDataURL('image/png'),
+          latitude: props.latitude,
+          longitude: props.longitude,
+          capturedAt: new Date().toISOString()
+        }
+        localStorage.setItem(mapSnapshotStorageKey, JSON.stringify(snapshot))
+      } catch (error) {
+        console.warn('Unable to capture map snapshot.', error)
+      }
+    }
+
+    const scheduleMapSnapshot = (delay = 900) => {
+      if (snapshotTimer) window.clearTimeout(snapshotTimer)
+      snapshotTimer = window.setTimeout(() => {
+        viewer?.scene.requestRender()
+        captureMapSnapshot()
+      }, delay)
+    }
 
     const toggleLayerMenu = () => {
       layerMenuOpen.value = !layerMenuOpen.value
@@ -253,6 +278,7 @@ export default {
       sourceLabel.value = useSatellite ? 'ESRI SATELLITE' : 'NATURAL EARTH'
       baseImageryLayer = provider
       viewer.scene.requestRender()
+      scheduleMapSnapshot(1200)
     }
 
     const updateFeatureVisibility = () => {
@@ -271,6 +297,7 @@ export default {
         setBaseImagery(false)
       }
       viewer?.scene.requestRender()
+      scheduleMapSnapshot(1200)
     }
 
     const toggleLayer = (key) => {
@@ -300,18 +327,21 @@ export default {
         duration: 0.8
       })
       viewer.scene.requestRender()
+      scheduleMapSnapshot(1200)
     }
 
     const zoomIn = () => {
       if (!viewer) return
       viewer.camera.zoomIn(100)
       viewer.scene.requestRender()
+      scheduleMapSnapshot()
     }
 
     const zoomOut = () => {
       if (!viewer) return
       viewer.camera.zoomOut(100)
       viewer.scene.requestRender()
+      scheduleMapSnapshot()
     }
 
     const createOfflineImagery = async () => {
@@ -473,6 +503,7 @@ export default {
         })
       }
       viewer.scene.requestRender()
+      scheduleMapSnapshot(1400)
     }
 
     const addOptional3DTiles = async () => {
@@ -547,6 +578,7 @@ export default {
         updateTarget(true)
         resizeObserver = new ResizeObserver(() => viewer?.resize())
         resizeObserver.observe(panelElement.value)
+        scheduleMapSnapshot(1800)
       } catch (error) {
         console.error('Cesium initialization failed.', error)
         loadError.value = error?.message || 'Cesium initialization failed'
@@ -561,6 +593,7 @@ export default {
       await nextTick()
       viewer?.resize()
       viewer?.scene.requestRender()
+      scheduleMapSnapshot()
     }
 
     const handleKeydown = event => {
@@ -578,6 +611,7 @@ export default {
     })
 
     onUnmounted(() => {
+      if (snapshotTimer) window.clearTimeout(snapshotTimer)
       window.removeEventListener('keydown', handleKeydown)
       resizeObserver?.disconnect()
       if (viewer && !viewer.isDestroyed()) viewer.destroy()

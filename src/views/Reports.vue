@@ -690,6 +690,8 @@ export default {
           structure: analysisReport.type,
           strength: importanceLabels[analysisReport.importance] || analysisReport.importance,
           area: analysisReport.source,
+          desiredResult: analysisReport.effect || 'N/A',
+          weapon: analysisReport.recommendation || 'N/A',
           details: analysisReport.details || analysisReport.analysis || 'N/A',
           imageName: analysisReport.imageName || 'N/A',
           imagePreview: analysisReport.imagePreview || '',

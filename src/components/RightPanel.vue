@@ -455,6 +455,8 @@ export default {
           structure: props.formData?.structureType || 'ไม่ระบุ',
           strength: props.formData?.strengthLevel || 'ไม่ระบุ',
           area: props.formData?.desiredEffect || 'ไม่ระบุ',
+          desiredResult: props.formData?.desiredEffect || 'ไม่ระบุ',
+          weapon: recommendations.value[0]?.item || 'ไม่ระบุ',
           details: props.formData?.targetDetails || 'ไม่ระบุ',
           imageName: props.formData?.imageName || 'ไม่ระบุ',
           imagePreview: props.formData?.imagePreview || '',

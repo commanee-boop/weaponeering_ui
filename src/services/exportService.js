@@ -1,5 +1,4 @@
 const reportFontFamily = "'TH Sarabun New', 'Sarabun', 'Leelawadee UI', Tahoma, sans-serif"
-const cleanRecommendation = value => String(value ?? 'N/A').replace(/\s*บาท\s*$/i, '').trim() || 'N/A'
 const escapeHtml = value => String(value ?? '')
   .replaceAll('&', '&amp;')
   .replaceAll('<', '&lt;')
@@ -21,31 +20,13 @@ const priorityLabels = {
   general: 'ทั่วไป'
 }
 
-const priorityAliases = {
-  'สำคัญสูง': 'red',
-  'ปานกลาง': 'orange',
-  'สำคัญ': 'orange',
-  'ทั่วไป': 'green'
-}
-
-const priorityColors = {
-  red: { pdf: '#d60000', docx: 'D60000' },
-  orange: { pdf: '#f28b2c', docx: 'F28B2C' },
-  green: { pdf: '#29a968', docx: '29A968' },
-  key: { pdf: '#d60000', docx: 'D60000' },
-  medium: { pdf: '#f28b2c', docx: 'F28B2C' },
-  general: { pdf: '#29a968', docx: '29A968' }
-}
-
 const priorityValue = data => String(data.priority || data.targetInfo?.priority || 'ทั่วไป').trim()
-const priorityKey = data => priorityAliases[priorityValue(data)] || priorityValue(data)
 
 const priorityLabel = data => {
   const value = priorityValue(data)
   return priorityLabels[value] || value
 }
 
-const priorityColor = data => priorityColors[priorityKey(data)] || priorityColors.green
 const hasImagePreview = targetInfo => typeof targetInfo?.imagePreview === 'string' && targetInfo.imagePreview.startsWith('data:image/')
 const hasReportValue = value => value !== undefined && value !== null && String(value).trim() !== ''
 const reportValue = value => hasReportValue(value) ? value : ''
@@ -73,34 +54,95 @@ const dataUrlToUint8Array = dataUrl => {
   return bytes
 }
 
-const createPdfReportHtml = data => {
+const summaryValues = data => {
+  const targetInfo = data.targetInfo || {}
+  const recommendations = Array.isArray(data.recommendations) ? data.recommendations : []
+  const firstRecommendation = recommendations[0] || {}
+
+  return [
+    targetInfo.id,
+    targetInfo.name,
+    priorityLabel(data),
+    coordinateText(targetInfo),
+    '-',
+    targetInfo.details,
+    targetInfo.desiredResult || targetInfo.desiredEffect || targetInfo.area || firstRecommendation.size,
+    '-'
+  ].map(value => hasReportValue(value) ? value : 'N/A')
+}
+
+const additionalRows = data => {
   const targetInfo = data.targetInfo || {}
   const metrics = data.metrics || {}
-  const recommendationValue = cleanRecommendation(metrics.recommendation)
   const recommendations = Array.isArray(data.recommendations) ? data.recommendations.slice(0, 5) : []
-  const stampColor = priorityColor(data).pdf
-  const imagePreview = hasImagePreview(targetInfo) ? targetInfo.imagePreview : ''
+  const summary = summaryValues(data)
+  const desiredResult = String(summary[6])
+  const selectedWeapon = String(summary[7])
+  const isSameValue = (left, right) => String(left ?? '').trim() === String(right ?? '').trim()
 
-  const infoRows = compactRows([
-    ['ID เป้าหมาย', targetInfo.id],
-    ['ชื่อเป้าหมาย', targetInfo.name],
-    ['ประเภท', targetInfo.type],
+  const rows = [
+    ['ประเภทเป้าหมาย', targetInfo.type],
     ['ชนิดสิ่งก่อสร้าง', targetInfo.structure],
-    ['พื้นที่ทำการ', targetInfo.area],
+    ['พื้นที่/แหล่งข้อมูล', isSameValue(targetInfo.area, desiredResult) ? '' : targetInfo.area],
     ['ระดับความแข็งแรง', targetInfo.strength],
-    ['รายละเอียดเป้าหมาย', targetInfo.details],
-    ['รูปภาพประกอบ', targetInfo.imageName || (imagePreview ? 'มีรูปภาพประกอบ' : '')],
-    ['พิกัด (LAT/LON)', coordinateText(targetInfo)]
-  ])
-
-  const metricRows = compactRows([
+    ['ชื่อไฟล์รูปภาพ', targetInfo.imageName],
     ['AI Confidence', hasReportValue(metrics.confidence) ? `${metrics.confidence}%` : ''],
     ['Pk Value', metrics.pk],
-    ['CEP Value', hasReportValue(metrics.cep) ? `${metrics.cep} m` : ''],
-    ['Recommendation', hasReportValue(metrics.recommendation) ? recommendationValue : '']
-  ])
-  const hasMetrics = metricRows.length > 0
-  const hasAnalysisText = hasReportValue(data.analysisText)
+    ['CEP Value', metrics.cep]
+  ]
+
+  recommendations.forEach((rec, index) => {
+    if (index === 0 && isSameValue(rec.item, selectedWeapon)) {
+      const firstRecommendationDetails = [
+        hasReportValue(rec.qty) ? `จำนวน ${rec.qty}` : '',
+        hasReportValue(rec.pd) ? `Pd ${formatScore(rec.pd)}` : ''
+      ].filter(Boolean).join(' / ')
+      if (firstRecommendationDetails) rows.push(['รายละเอียดอาวุธที่ใช้', firstRecommendationDetails])
+      return
+    }
+
+    rows.push([
+      `อาวุธทางเลือกลำดับที่ ${index + 1}`,
+      [
+        rec.item,
+        hasReportValue(rec.size) && !isSameValue(rec.size, desiredResult) ? `ผลลัพธ์ ${rec.size}` : '',
+        hasReportValue(rec.qty) ? `จำนวน ${rec.qty}` : '',
+        hasReportValue(rec.pd) ? `Pd ${formatScore(rec.pd)}` : '',
+        hasReportValue(rec.pk) ? `Pk ${formatScore(rec.pk)}` : ''
+      ].filter(Boolean).join(' / ')
+    ])
+  })
+
+  if (hasReportValue(data.analysisText) && !isSameValue(data.analysisText, targetInfo.details)) {
+    rows.push(['ผลการวิเคราะห์ AI', data.analysisText])
+  }
+
+  return compactRows(rows)
+}
+
+const getImageDimensions = dataUrl => new Promise(resolve => {
+  const image = new Image()
+  image.onload = () => resolve({ width: image.naturalWidth || image.width, height: image.naturalHeight || image.height })
+  image.onerror = () => resolve({ width: 4, height: 3 })
+  image.src = dataUrl
+})
+
+const fitImageWithin = (dimensions, maxWidth, maxHeight) => {
+  const width = Math.max(1, Number(dimensions?.width) || maxWidth)
+  const height = Math.max(1, Number(dimensions?.height) || maxHeight)
+  const scale = Math.min(maxWidth / width, maxHeight / height)
+  return {
+    width: Math.round(width * scale),
+    height: Math.round(height * scale)
+  }
+}
+
+const createPdfReportHtml = data => {
+  const targetInfo = data.targetInfo || {}
+  const imagePreview = hasImagePreview(targetInfo) ? targetInfo.imagePreview : ''
+  const summaryHeaders = ['TGT', 'ชื่อเป้าหมาย', 'PRI', 'พิกัด', 'ความสูง (MSL)', 'รายละเอียดเป้าหมาย', 'ผลลัพธ์ที่ต้องการ', 'อาวุธที่ใช้']
+  const summaryData = summaryValues(data)
+  const otherRows = additionalRows(data)
 
   const renderRows = rows => rows.map(([label, value]) => `
     <tr>
@@ -109,122 +151,87 @@ const createPdfReportHtml = data => {
     </tr>
   `).join('')
 
-  const recommendationRows = recommendations.map((rec, index) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(rec.item || 'N/A')}</td>
-      <td>${escapeHtml(rec.size || 'N/A')}</td>
-      <td>${escapeHtml(rec.qty || 0)}</td>
-      <td>${formatScore(rec.pd)}</td>
-      <td>${formatScore(rec.pk)}</td>
-    </tr>
-  `).join('')
+  const summaryHeaderCells = summaryHeaders
+    .map((label, index) => `<th>${escapeHtml(label)}${index === 4 ? '<br>(ft)' : ''}</th>`)
+    .join('')
+  const summaryValueCells = summaryData.map(value => `<td>${escapeHtml(value)}</td>`).join('')
 
   return `
     <style>
       .pdf-report {
-        width: 794px;
+        width: 1123px;
         min-height: 0;
         position: relative;
-        padding: 46px 56px;
         background: #ffffff;
         color: #111827;
         font-family: ${reportFontFamily};
-        font-size: 22px;
-        line-height: 1.35;
+        font-size: 20px;
+        line-height: 1.3;
       }
       .pdf-report * { box-sizing: border-box; font-family: ${reportFontFamily}; }
-      .pdf-report h1 { margin: 0 0 4px; padding-right: 230px; color: #174ea6; font-size: 34px; font-weight: 700; line-height: 1.05; }
-      .pdf-report h2 { margin: 16px 0 6px; color: #174ea6; font-size: 25px; font-weight: 700; }
-      .pdf-report .meta { margin-bottom: 8px; color: #5f6b7a; font-size: 18px; }
-      .pdf-report .priority-stamp {
-        position: absolute;
-        top: 40px;
-        right: 56px;
-        max-width: 220px;
-        color: ${stampColor};
-        font-size: 28px;
-        font-weight: 700;
-        line-height: 1.1;
-        text-align: right;
-      }
-      .pdf-report .priority-stamp strong { display: block; font-size: 38px; }
-      .pdf-report .pdf-before-metrics {
-        min-height: 1080px;
-      }
-      .pdf-report .target-image-page {
-        margin-bottom: 12px;
-      }
+      .pdf-report .report-page { width: 1123px; min-height: 794px; padding: 30px 42px; }
+      .pdf-report .summary-page { min-height: 794px; }
+      .pdf-report h1 { margin: 0 0 3px; color: #174ea6; font-size: 30px; font-weight: 700; line-height: 1.05; }
+      .pdf-report h2 { margin: 0 0 8px; color: #174ea6; font-size: 24px; font-weight: 700; }
+      .pdf-report .meta { margin-bottom: 8px; color: #5f6b7a; font-size: 17px; }
       .pdf-report table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; table-layout: fixed; }
-      .pdf-report th, .pdf-report td { border: 1px solid #b8c2d0; padding: 6px 8px; vertical-align: top; font-size: 18px; }
+      .pdf-report th, .pdf-report td { border: 1px solid #b8c2d0; padding: 6px 8px; vertical-align: middle; font-size: 17px; }
       .pdf-report th { background: #174ea6; color: #ffffff; font-weight: 700; text-align: left; }
-      .pdf-report .info-table th, .pdf-report .metrics-table th { width: 210px; }
+      .pdf-report .additional-table th { width: 250px; }
       .pdf-report .target-image-frame {
-        margin: 6px 0 12px;
+        height: 488px;
+        margin: 10px 0 0;
         padding: 8px;
         border: 1px solid #b8c2d0;
         background: #f8fafc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .pdf-report .target-image-frame img {
         display: block;
-        width: 100%;
-        max-height: 320px;
+        width: auto;
+        max-width: 842px;
+        max-height: 470px;
         object-fit: contain;
         background: #ffffff;
       }
-      .pdf-report .target-image-frame figcaption {
-        margin-top: 6px;
+      .pdf-report .image-placeholder {
         color: #5f6b7a;
-        font-size: 17px;
+        font-size: 22px;
         text-align: center;
       }
-      .pdf-report .recommendation-table th, .pdf-report .recommendation-table td { text-align: center; }
-      .pdf-report .recommendation-table td:nth-child(2) { text-align: left; }
-      .pdf-report .analysis {
-        min-height: 0;
-        padding: 10px 12px;
-        border-left: 6px solid #174ea6;
-        background: #f3f7fd;
-        color: #263343;
-        font-size: 20px;
-        white-space: pre-wrap;
-      }
+      .pdf-report .summary-table { margin: 6px 0 0; }
+      .pdf-report .summary-table th { padding: 5px; font-size: 15px; text-align: center; vertical-align: middle; }
+      .pdf-report .summary-table td { padding: 6px 5px; font-size: 15px; text-align: center; vertical-align: middle; overflow-wrap: anywhere; }
+      .pdf-report .summary-table th:nth-child(1), .pdf-report .summary-table td:nth-child(1) { width: 9%; }
+      .pdf-report .summary-table th:nth-child(2), .pdf-report .summary-table td:nth-child(2) { width: 12%; }
+      .pdf-report .summary-table th:nth-child(3), .pdf-report .summary-table td:nth-child(3) { width: 8%; }
+      .pdf-report .summary-table th:nth-child(4), .pdf-report .summary-table td:nth-child(4) { width: 14%; }
+      .pdf-report .summary-table th:nth-child(5), .pdf-report .summary-table td:nth-child(5) { width: 11%; }
+      .pdf-report .summary-table th:nth-child(6), .pdf-report .summary-table td:nth-child(6) { width: 17%; text-align: left; }
+      .pdf-report .summary-table th:nth-child(7), .pdf-report .summary-table td:nth-child(7) { width: 15%; }
+      .pdf-report .summary-table th:nth-child(8), .pdf-report .summary-table td:nth-child(8) { width: 14%; }
     </style>
     <article class="pdf-report">
-      <div class="priority-stamp">ระดับความสำคัญ<strong>${escapeHtml(priorityLabel(data))}</strong></div>
-      <div class="${hasMetrics ? 'pdf-before-metrics' : ''}">
-        <section>
-          <h1>Weaponeering Analysis Summary</h1>
-          <div class="meta">วันที่จัดทำ: ${escapeHtml(data.generatedDate || new Date().toLocaleString('th-TH'))}</div>
-          ${infoRows.length ? `
-            <h2>ข้อมูลเป้าหมาย (Target Information)</h2>
-            <table class="info-table"><tbody>${renderRows(infoRows)}</tbody></table>
-          ` : ''}
-        </section>
-        ${imagePreview ? `
-          <section class="target-image-page">
-            <h2>รูปภาพประกอบเป้าหมาย (Target Image)</h2>
-            <figure class="target-image-frame">
-              <img src="${escapeHtml(imagePreview)}" alt="Target image" />
-              <figcaption>${escapeHtml(targetInfo.imageName || 'Target image')}</figcaption>
-            </figure>
-          </section>
-        ` : ''}
-      </div>
-      ${hasMetrics ? `
-        <h2>ผลการวิเคราะห์ (Analysis Metrics)</h2>
-        <table class="metrics-table"><tbody>${renderRows(metricRows)}</tbody></table>
-      ` : ''}
-      ${recommendations.length ? `
-        <h2>Top 5 Recommendations</h2>
-        <table class="recommendation-table">
-          <thead><tr><th>ลำดับ</th><th>รายการ</th><th>ขนาด</th><th>จำนวน</th><th>Pd</th><th>Pk</th></tr></thead>
-          <tbody>${recommendationRows}</tbody>
+      <section class="report-page summary-page">
+        <h1>Weaponeering Analysis Summary</h1>
+        <div class="meta">วันที่จัดทำ: ${escapeHtml(data.generatedDate || new Date().toLocaleString('th-TH'))}</div>
+        <figure class="target-image-frame">
+          ${imagePreview
+            ? `<img src="${escapeHtml(imagePreview)}" alt="${escapeHtml(targetInfo.imageName || 'Target image')}" />`
+            : '<div class="image-placeholder">ไม่มีรูปภาพเป้าหมาย</div>'}
+        </figure>
+        <table class="summary-table">
+          <thead><tr>${summaryHeaderCells}</tr></thead>
+          <tbody><tr>${summaryValueCells}</tr></tbody>
         </table>
-      ` : ''}
-      ${hasAnalysisText ? `
-        <h2>AI Analysis Result</h2>
-        <div class="analysis">${escapeHtml(data.analysisText)}</div>
+      </section>
+      ${otherRows.length ? `
+        <section class="report-page details-page">
+          <h2>ข้อมูลเพิ่มเติม</h2>
+          <table class="additional-table"><tbody>${renderRows(otherRows)}</tbody></table>
+        </section>
       ` : ''}
     </article>
   `
@@ -255,7 +262,7 @@ export const exportService = {
       const { jsPDF } = await import('jspdf')
       const { default: html2canvas } = await import('html2canvas')
       const doc = new jsPDF({
-        orientation: 'portrait',
+        orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       })
@@ -265,7 +272,7 @@ export const exportService = {
       reportContainer.style.position = 'absolute'
       reportContainer.style.left = '0'
       reportContainer.style.top = '0'
-      reportContainer.style.width = '794px'
+      reportContainer.style.width = '1123px'
       reportContainer.style.background = '#ffffff'
       reportContainer.style.pointerEvents = 'none'
       reportContainer.style.zIndex = '-1'
@@ -279,7 +286,7 @@ export const exportService = {
           backgroundColor: '#ffffff',
           useCORS: true,
           logging: false,
-          windowWidth: 794
+          windowWidth: 1123
         })
 
         const pageWidth = doc.internal.pageSize.getWidth()
@@ -332,15 +339,18 @@ export const exportService = {
         WidthType,
         BorderStyle,
         TableLayoutType,
-        AlignmentType
+        AlignmentType,
+        PageOrientation,
+        VerticalAlign
       } = await import('docx')
       const wordBlue = '174EA6'
       const wordText = '111827'
       const wordMuted = '5F6B7A'
       const wordBorder = 'B8C2D0'
-      const tableWidth = 9800
-      const twoColWidths = [2900, 6900]
-      const recColWidths = [900, 3300, 1900, 1200, 1200, 1300]
+      const wordFontSize = 32
+      const tableWidth = 15700
+      const twoColWidths = [3600, 12100]
+      const summaryColWidths = [1400, 1900, 1300, 2200, 1800, 2600, 2300, 2200]
       const tableBorders = {
         top: { style: BorderStyle.SINGLE, size: 1, color: wordBorder },
         bottom: { style: BorderStyle.SINGLE, size: 1, color: wordBorder },
@@ -353,7 +363,7 @@ export const exportService = {
       const run = (text, options = {}) => new TextRun({
         text: String(text ?? 'N/A'),
         font: 'TH Sarabun New',
-        size: options.size || 28,
+        size: options.size || wordFontSize,
         bold: Boolean(options.bold),
         color: options.color || wordText
       })
@@ -365,8 +375,8 @@ export const exportService = {
       })
 
       const heading = text => new Paragraph({
-        spacing: { before: 180, after: 70 },
-        children: [run(text, { bold: true, color: wordBlue, size: 32 })]
+        spacing: { before: 80, after: 80 },
+        children: [run(text, { bold: true, color: wordBlue, size: wordFontSize })]
       })
 
       const pageBreak = () => new Paragraph({
@@ -376,15 +386,25 @@ export const exportService = {
       const tableCell = (text, width, options = {}) => new TableCell({
         width: { size: width, type: WidthType.DXA },
         shading: options.shading,
+        verticalAlign: VerticalAlign.CENTER,
         margins: { top: 80, bottom: 80, left: 130, right: 130 },
-        children: [
-          paragraph(text, {
-            bold: options.bold,
-            color: options.color || wordText,
-            size: options.size || 24,
-            alignment: options.alignment
-          })
-        ]
+        children: [new Paragraph({
+          alignment: options.alignment,
+          children: options.lines
+            ? options.lines.flatMap((line, index) => [
+                ...(index ? [new TextRun({ break: 1 })] : []),
+                run(line, {
+                  bold: options.bold,
+                  color: options.color || wordText,
+                  size: options.size || wordFontSize
+                })
+              ])
+            : [run(text, {
+                bold: options.bold,
+                color: options.color || wordText,
+                size: options.size || wordFontSize
+              })]
+        })]
       })
 
       const twoColumnTable = rows => new Table({
@@ -394,146 +414,83 @@ export const exportService = {
         borders: tableBorders,
         rows: rows.map(([label, value]) => new TableRow({
           children: [
-            tableCell(label, twoColWidths[0], { shading: { fill: wordBlue }, bold: true, color: 'FFFFFF' }),
-            tableCell(hasReportValue(value) ? value : 'N/A', twoColWidths[1])
+            tableCell(label, twoColWidths[0], { shading: { fill: wordBlue }, bold: true, color: 'FFFFFF', size: wordFontSize }),
+            tableCell(hasReportValue(value) ? value : 'N/A', twoColWidths[1], { size: wordFontSize })
           ]
         }))
       })
 
-      const recTable = rows => new Table({
+      const summaryTable = values => new Table({
         width: { size: tableWidth, type: WidthType.DXA },
-        columnWidths: recColWidths,
+        columnWidths: summaryColWidths,
         layout: TableLayoutType.FIXED,
         borders: tableBorders,
-        rows: rows
-      })
-
-      const recHeaderCell = (text, index) => tableCell(text, recColWidths[index], {
-        shading: { fill: wordBlue },
-        bold: true,
-        color: 'FFFFFF',
-        alignment: AlignmentType.CENTER
-      })
-
-      const recValueCell = (text, index, centered = true) => tableCell(text, recColWidths[index], {
-        alignment: centered ? AlignmentType.CENTER : undefined,
-        color: wordText
+        rows: [
+          new TableRow({
+            tableHeader: true,
+            children: ['TGT', 'ชื่อเป้าหมาย', 'PRI', 'พิกัด', 'ความสูง (MSL)', 'รายละเอียดเป้าหมาย', 'ผลลัพธ์ที่ต้องการ', 'อาวุธที่ใช้']
+              .map((label, index) => tableCell(label, summaryColWidths[index], {
+                shading: { fill: wordBlue },
+                bold: true,
+                color: 'FFFFFF',
+                size: wordFontSize,
+                alignment: AlignmentType.CENTER,
+                lines: index === 4 ? ['ความสูง (MSL)', '(ft)'] : undefined
+              }))
+          }),
+          new TableRow({
+            children: values.map((value, index) => tableCell(value, summaryColWidths[index], {
+              size: wordFontSize,
+              alignment: index === 5 ? undefined : AlignmentType.CENTER
+            }))
+          })
+        ]
       })
 
       const sections = []
       const targetInfo = data.targetInfo || {}
-      const metrics = data.metrics || {}
-      const recommendationValue = cleanRecommendation(metrics.recommendation)
-      const recommendations = Array.isArray(data.recommendations) ? data.recommendations.slice(0, 5) : []
-
-      const infoRows = compactRows([
-        ['ID เป้าหมาย', targetInfo.id],
-        ['ชื่อเป้าหมาย', targetInfo.name],
-        ['ประเภท', targetInfo.type],
-        ['ชนิดสิ่งก่อสร้าง', targetInfo.structure],
-        ['พื้นที่ทำการ', targetInfo.area],
-        ['ระดับความแข็งแรง', targetInfo.strength],
-        ['รายละเอียดเป้าหมาย', targetInfo.details],
-        ['รูปภาพประกอบ', targetInfo.imageName || (hasImagePreview(targetInfo) ? 'มีรูปภาพประกอบ' : '')],
-        ['พิกัด (LAT/LON)', coordinateText(targetInfo)]
-      ])
-
-      const metricRows = compactRows([
-        ['AI Confidence', hasReportValue(metrics.confidence) ? `${metrics.confidence}%` : ''],
-        ['Pk Value', metrics.pk],
-        ['CEP Value', hasReportValue(metrics.cep) ? `${metrics.cep} m` : ''],
-        ['Recommendation', hasReportValue(metrics.recommendation) ? recommendationValue : '']
-      ])
-      const hasMetrics = metricRows.length > 0
-      const hasAnalysisText = hasReportValue(data.analysisText)
+      const horizontalSummary = summaryValues(data)
+      const otherRows = additionalRows(data)
 
       sections.push(new Paragraph({
         spacing: { after: 30 },
-        children: [run('Weaponeering Analysis Summary', { bold: true, color: wordBlue, size: 40 })]
+        children: [run('Weaponeering Analysis Summary', { bold: true, color: wordBlue, size: wordFontSize })]
       }))
       sections.push(paragraph(`วันที่จัดทำ: ${data.generatedDate || new Date().toLocaleString('th-TH')}`, {
         color: wordMuted,
-        size: 22,
-        spacing: { after: 60 }
+        size: wordFontSize,
+        spacing: { after: 50 }
       }))
-      sections.push(paragraph(`ระดับความสำคัญ: ${priorityLabel(data)}`, {
-        alignment: AlignmentType.RIGHT,
-        bold: true,
-        color: priorityColor(data).docx,
-        size: 34,
-        spacing: { after: 100 }
-      }))
-
-      if (infoRows.length) {
-        sections.push(heading('ข้อมูลเป้าหมาย (Target Information)'))
-        sections.push(twoColumnTable(infoRows))
-      }
 
       if (hasImagePreview(targetInfo)) {
-        sections.push(heading('รูปภาพประกอบเป้าหมาย (Target Image)'))
+        const dimensions = await getImageDimensions(targetInfo.imagePreview)
+        const fittedImage = fitImageWithin(dimensions, 1200, 450)
         sections.push(new Paragraph({
           alignment: AlignmentType.CENTER,
+          spacing: { before: 100, after: 40 },
           children: [
             new ImageRun({
               type: imageTypeFromDataUrl(targetInfo.imagePreview),
               data: dataUrlToUint8Array(targetInfo.imagePreview),
-              transformation: {
-                width: 380,
-                height: 235
-              }
+              transformation: fittedImage
             })
           ]
         }))
-        sections.push(paragraph(targetInfo.imageName || 'Target image', {
+      } else {
+        sections.push(paragraph('ไม่มีรูปภาพเป้าหมาย', {
           alignment: AlignmentType.CENTER,
           color: wordMuted,
-          size: 22,
-          spacing: { before: 50, after: 80 }
+          size: wordFontSize,
+          spacing: { before: 700, after: 700 }
         }))
       }
 
-      if (hasMetrics) {
+      sections.push(summaryTable(horizontalSummary))
+
+      if (otherRows.length) {
         sections.push(pageBreak())
-        sections.push(heading('ผลการวิเคราะห์ (Analysis Metrics)'))
-        sections.push(twoColumnTable(metricRows))
-      }
-
-      if (recommendations.length) {
-        sections.push(heading('Top 5 Recommendations'))
-        const recommendationRows = [
-          new TableRow({
-            children: [
-              recHeaderCell('ลำดับ', 0),
-              recHeaderCell('รายการ', 1),
-              recHeaderCell('ขนาด', 2),
-              recHeaderCell('จำนวน', 3),
-              recHeaderCell('Pd', 4),
-              recHeaderCell('Pk', 5)
-            ]
-          })
-        ]
-        recommendations.forEach((rec, idx) => {
-          recommendationRows.push(new TableRow({
-            children: [
-              recValueCell(String(idx + 1), 0),
-              recValueCell(rec.item || 'N/A', 1, false),
-              recValueCell(rec.size || 'N/A', 2),
-              recValueCell(String(rec.qty || 0), 3),
-              recValueCell(formatScore(rec.pd), 4),
-              recValueCell(formatScore(rec.pk), 5)
-            ]
-          }))
-        })
-        sections.push(recTable(recommendationRows))
-      }
-
-      if (hasAnalysisText) {
-        sections.push(heading('AI Analysis Result'))
-        sections.push(paragraph(data.analysisText, {
-          size: 24,
-          color: '263343',
-          spacing: { after: 120 }
-        }))
+        sections.push(heading('ข้อมูลเพิ่มเติม'))
+        sections.push(twoColumnTable(otherRows))
       }
 
       const doc = new Document({
@@ -542,7 +499,7 @@ export const exportService = {
             document: {
               run: {
                 font: 'TH Sarabun New',
-                size: 28
+                size: wordFontSize
               }
             }
           }
@@ -551,11 +508,14 @@ export const exportService = {
           {
             properties: {
               page: {
+                size: {
+                  orientation: PageOrientation.LANDSCAPE
+                },
                 margin: {
-                  top: 720,
-                  right: 820,
-                  bottom: 720,
-                  left: 820
+                  top: 560,
+                  right: 568,
+                  bottom: 560,
+                  left: 568
                 }
               }
             },

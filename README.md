@@ -44,7 +44,7 @@ A comprehensive Vue.js web application for weaponeering analysis with interactiv
 - **AI Analysis Results** - Detailed analysis output
 - **Chatbot** - Interactive AI Assistant
 - **Simulator** - Embedded video player
-- **Export Functions** - Save data as PDF, Word, Excel
+- **Export Functions** - Save data as PDF, Word, and Excel
 
 ### Header Navigation
 - Logo and system title

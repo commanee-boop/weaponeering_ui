@@ -185,10 +185,17 @@
               <i class="bi bi-chevron-down export-chevron" :class="{ open: showExportMenu }"></i>
             </button>
             <div v-if="showExportMenu" class="export-format-menu" role="menu">
+<<<<<<< Updated upstream
               <div class="export-format-heading">
                 <strong>รูปแบบเอกสาร</strong>
                 <small>เลือกไฟล์สำหรับจัดเก็บหรือเสนอรายงาน</small>
               </div>
+=======
+              <button type="button" role="menuitem" @click="exportData('word')">
+                <span class="export-format-icon word"><i class="bi bi-file-earmark-word"></i></span>
+                <span><strong>Word</strong><small>เอกสาร .doc</small></span>
+              </button>
+>>>>>>> Stashed changes
               <button type="button" role="menuitem" @click="exportData('pdf')">
                 <span class="export-format-icon pdf"><i class="bi bi-file-earmark-pdf"></i></span>
                 <span><strong>PDF</strong><small>เอกสารพร้อมพิมพ์และจัดเก็บ</small></span>
@@ -446,6 +453,7 @@ export default {
 
     const buildExportData = () => {
       const date = new Date().toISOString().split('T')[0]
+<<<<<<< Updated upstream
       
       return {
         targetInfo: {
@@ -472,6 +480,27 @@ export default {
         recommendations: recommendations.value,
         analysisText: aiAnalysisText.value,
         priority: props.targetPriority || 'ทั่วไป',
+=======
+      return {
+        targetInfo: {
+          id: props.formData?.tgt || `TGT-${date}-${Math.floor(Math.random() * 1000)}`,
+          name: props.formData?.targetName || props.formData?.selectedTargetSource || 'ไม่ระบุ',
+          type: props.formData?.targetType || 'ไม่ระบุ',
+          structure: props.formData?.structureType || 'ไม่ระบุ',
+          strength: props.formData?.strengthLevel || 'ไม่ระบุ',
+          area: props.formData?.selectedTargetSource || '',
+          details: props.formData?.targetDetails || 'ไม่ระบุ',
+          desiredResult: props.formData?.desiredEffect || 'ไม่ระบุ',
+          imageName: props.formData?.imageName || '',
+          imagePreview: props.formData?.imagePreview || '',
+          latitude: props.formData?.latitude,
+          longitude: props.formData?.longitude
+        },
+        metrics: { confidence: 85, pk: props.formData?.pk, cep: props.formData?.cep },
+        recommendations: recommendations.value,
+        analysisText: aiAnalysisText.value,
+        priority: props.targetPriority || props.formData?.targetPriority || 'ทั่วไป',
+>>>>>>> Stashed changes
         generatedDate: new Date().toLocaleString('th-TH')
       }
     }
@@ -479,6 +508,7 @@ export default {
     const exportData = async (format) => {
       showExportMenu.value = false
       const date = new Date().toISOString().split('T')[0]
+<<<<<<< Updated upstream
       const exportData = buildExportData()
 
       try {
@@ -498,6 +528,16 @@ export default {
       } catch (error) {
         console.error('Export Error:', error)
         alert(`เกิดข้อผิดพลาดในการส่งออก: ${error.message}`)
+=======
+      const data = buildExportData()
+      try {
+        if (format === 'word') await exportService.exportToWord(data, `weaponeering_summary_${date}.docx`)
+        else if (format === 'pdf') await exportService.exportToPDF(data, `weaponeering_summary_${date}.pdf`)
+        else return
+      } catch (error) {
+        console.error('Export error:', error)
+        alert(`ไม่สามารถส่งออกไฟล์ได้: ${error.message}`)
+>>>>>>> Stashed changes
       }
     }
 

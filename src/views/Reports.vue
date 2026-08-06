@@ -221,6 +221,7 @@
                             <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="ส่งออกรายงาน" @click.stop>
                               <i class="bi bi-download"></i> นำออก
                             </button>
+<<<<<<< Updated upstream
                             <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end export-format-dropdown" @click.stop>
                               <li class="export-dropdown-header">
                                 <strong>รูปแบบเอกสาร</strong>
@@ -238,6 +239,11 @@
                                   <span><strong>Word</strong><small>เอกสารสำหรับแก้ไขและนำเสนอ</small></span>
                                 </button>
                               </li>
+=======
+                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" @click.stop>
+                              <li><button class="dropdown-item" type="button" @click.stop="exportReports('pdf', report)"><i class="bi bi-file-pdf me-2"></i>PDF</button></li>
+                              <li><button class="dropdown-item" type="button" @click.stop="exportReports('word', report)"><i class="bi bi-file-word me-2"></i>Word</button></li>
+>>>>>>> Stashed changes
                             </ul>
                           </div>
                           <button class="btn btn-sm btn-outline-danger" @click.stop="requestDeleteReport(report)">
@@ -320,6 +326,116 @@
           </section>
         </div>
 
+<<<<<<< Updated upstream
+=======
+        <div v-if="editingReport" class="analysis-modal-backdrop" @click.self="closeEditReport">
+          <section class="analysis-result-modal edit-report-modal" role="dialog" aria-modal="true" aria-labelledby="edit-report-title">
+            <header class="analysis-result-header">
+              <div class="analysis-result-title">
+                <span><i class="bi bi-pencil-square"></i></span>
+                <div><small>EDIT DATA</small><h3 id="edit-report-title">แก้ไขข้อมูลรายการบันทึก</h3></div>
+              </div>
+              <button type="button" class="analysis-modal-close" aria-label="ปิด" @click="closeEditReport"><i class="bi bi-x-lg"></i></button>
+            </header>
+
+            <form class="analysis-result-body edit-report-form" @submit.prevent="requestEditConfirmation">
+              <div class="analysis-target-banner">
+                <span class="analysis-target-icon"><i :class="targetTypeIcon(editForm.type)"></i></span>
+                <div><small>{{ editForm.tgt || `TGT-${String(editingReport.id).padStart(3, '0')}` }}</small><strong>{{ editForm.targetName || 'ชื่อเป้าหมายใหม่' }}</strong><span>{{ editForm.source }} · {{ editForm.type }}</span></div>
+                <span class="importance-badge" :class="editForm.importance"><i :class="importanceIcon(editForm.importance)"></i>{{ importanceLabels[editForm.importance] }}</span>
+              </div>
+
+              <div class="edit-form-grid">
+                <label class="edit-form-field">
+                  <span><i class="bi bi-tag"></i> ชื่อเป้าหมาย</span>
+                  <input v-model.trim="editForm.targetName" type="text" required />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-hash"></i> TGT</span>
+                  <input v-model.trim="editForm.tgt" type="text" required />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-crosshair"></i> เป้าหมาย</span>
+                  <input v-model.trim="editForm.target" type="text" required />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-123"></i> Pri</span>
+                  <input v-model.number="editForm.pri" type="number" step="1" required />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-broadcast-pin"></i> แหล่งที่มา</span>
+                  <select v-model="editForm.source" required>
+                    <option v-for="source in sourceOptions" :key="source" :value="source">{{ source }}</option>
+                  </select>
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-buildings"></i> ประเภท</span>
+                  <select v-model="editForm.type" required>
+                    <option v-for="type in typeOptions" :key="type" :value="type">{{ type }}</option>
+                  </select>
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-card-text"></i> ลักษณะของเป้าหมาย</span>
+                  <input v-model.trim="editForm.targetDescription" type="text" required />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-exclamation-diamond"></i> ความสำคัญเป้าหมาย</span>
+                  <input v-model.trim="editForm.targetImportance" type="text" placeholder="กรอกความสำคัญเป้าหมาย" />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-rulers"></i> ความสูง (MSL)(ft.)</span>
+                  <input v-model.number="editForm.heightMslFt" type="number" step="1" required />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-geo-alt"></i> DMPI: พิกัด (Lat/Long)</span>
+                  <input
+                    v-model.trim="editForm.dmpiCoordinates"
+                    type="text"
+                    inputmode="decimal"
+                    pattern="[0-9.,\\-\\s]*"
+                    placeholder="14.123456, 101.123456"
+                    required
+                    @input="sanitizeDmpiCoordinates"
+                  />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-bullseye"></i> ผลกระทบที่ต้องการ</span>
+                  <select v-model="editForm.desiredEffect" required>
+                    <option v-for="effect in desiredEffectOptions" :key="effect" :value="effect">{{ effect }}</option>
+                  </select>
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-flag"></i> ความสำคัญ</span>
+                  <select v-model="editForm.importance" required>
+                    <option v-for="level in importanceOptions" :key="level.value" :value="level.value">{{ level.label }}</option>
+                  </select>
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-crosshair2"></i> อาวุธที่ใช้</span>
+                  <input v-model.trim="editForm.weaponUsed" type="text" placeholder="กรอกอาวุธที่ใช้" />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-calendar3"></i> วันที่</span>
+                  <input v-model="editForm.dateValue" type="date" required />
+                </label>
+                <label class="edit-form-field">
+                  <span><i class="bi bi-check-circle"></i> สถานะ</span>
+                  <input v-model.trim="editForm.status" type="text" required />
+                </label>
+              </div>
+
+              <footer class="analysis-result-footer edit-report-footer">
+                <span><i class="bi bi-calendar3"></i> {{ editForm.dateValue || '-' }}</span>
+                <div class="edit-footer-actions">
+                  <button type="button" class="edit-cancel-button" @click="closeEditReport"><i class="bi bi-x-circle"></i> ยกเลิก</button>
+                  <button type="submit"><i class="bi bi-save"></i> บันทึกข้อมูลแก้ไข</button>
+                </div>
+              </footer>
+            </form>
+          </section>
+        </div>
+
+>>>>>>> Stashed changes
         <div v-if="reportPendingDelete" class="delete-modal-backdrop" @click.self="cancelDeleteReport">
           <section class="delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title">
             <button type="button" class="delete-modal-close" aria-label="ปิด" @click="cancelDeleteReport"><i class="bi bi-x-lg"></i></button>
@@ -419,6 +535,28 @@ export default {
     })
     const openFilterDropdown = ref('')
     const selectedReport = ref(null)
+<<<<<<< Updated upstream
+=======
+    const editingReport = ref(null)
+    const showEditConfirm = ref(false)
+    const editForm = ref({
+      targetName: '',
+      tgt: '',
+      target: '',
+      pri: '',
+      source: '',
+      type: '',
+      targetDescription: '',
+      targetImportance: '',
+      heightMslFt: '',
+      dmpiCoordinates: '',
+      desiredEffect: '',
+      importance: '',
+      weaponUsed: '',
+      dateValue: '',
+      status: ''
+    })
+>>>>>>> Stashed changes
     const reportPendingDelete = ref(null)
     const showFinalDeleteConfirm = ref(false)
     const currentPage = ref(1)
@@ -654,6 +792,91 @@ export default {
       if (report) openAnalysisResult(report)
     }
 
+<<<<<<< Updated upstream
+=======
+    const editReport = (report) => {
+      editingReport.value = report
+      editForm.value = {
+        targetName: report.targetName || '',
+        tgt: report.tgt || `TGT-${String(report.id).padStart(3, '0')}`,
+        target: report.target,
+        pri: report.pri ?? report.id,
+        source: report.source,
+        type: report.type,
+        targetDescription: report.targetDescription || report.type,
+        targetImportance: report.targetImportance || '',
+        heightMslFt: report.heightMslFt ?? '',
+        dmpiCoordinates: report.dmpiCoordinates || '',
+        desiredEffect: report.desiredEffect || desiredEffectOptions[0],
+        importance: report.importance,
+        weaponUsed: report.weaponUsed || '',
+        dateValue: report.dateValue,
+        status: report.status
+      }
+      closeAnalysisResult()
+    }
+
+    const closeEditReport = () => {
+      showEditConfirm.value = false
+      editingReport.value = null
+      editForm.value = {
+        targetName: '',
+        tgt: '',
+        target: '',
+        pri: '',
+        source: '',
+        type: '',
+        targetDescription: '',
+        targetImportance: '',
+        heightMslFt: '',
+        dmpiCoordinates: '',
+        desiredEffect: '',
+        importance: '',
+        weaponUsed: '',
+        dateValue: '',
+        status: ''
+      }
+    }
+
+    const formatEditedDate = (dateValue, currentDate = '') => {
+      if (!dateValue) return currentDate
+      const [year, month, day] = dateValue.split('-')
+      const buddhistYear = Number(year) + 543
+      const time = currentDate.split(' ')[1] || '00:00'
+      return `${day}/${month}/${buddhistYear} ${time}`
+    }
+
+    const requestEditConfirmation = () => {
+      if (editingReport.value) showEditConfirm.value = true
+    }
+
+    const closeEditConfirmation = () => {
+      showEditConfirm.value = false
+    }
+
+    const sanitizeDmpiCoordinates = () => {
+      editForm.value.dmpiCoordinates = String(editForm.value.dmpiCoordinates || '').replace(/[^0-9.,\-\s]/g, '')
+    }
+
+    const saveEditedReport = () => {
+      if (!editingReport.value) return
+      sanitizeDmpiCoordinates()
+      const reportId = editingReport.value.id
+      const currentReport = reports.value.find(report => report.id === reportId)
+      if (!currentReport) return
+
+      const updatedReport = {
+        ...currentReport,
+        ...editForm.value,
+        date: formatEditedDate(editForm.value.dateValue, currentReport.date)
+      }
+
+      reports.value = reports.value.map(report => report.id === reportId ? updatedReport : report)
+      showEditConfirm.value = false
+      closeEditReport()
+    }
+
+>>>>>>> Stashed changes
     const requestDeleteReport = (report) => {
       reportPendingDelete.value = report
       showFinalDeleteConfirm.value = false
@@ -673,6 +896,7 @@ export default {
       reportPendingDelete.value = null
     }
 
+<<<<<<< Updated upstream
     const sanitizeFilename = (value) => String(value || 'report')
       .trim()
       .replace(/[\\/:*?"<>|]+/g, '')
@@ -717,6 +941,49 @@ export default {
         analysisText: analysisReport.analysis,
         priority: importanceLabels[analysisReport.importance] || analysisReport.importance,
         generatedDate: new Date().toLocaleString('th-TH')
+=======
+    const buildReportExportData = report => {
+      const pk = (0.72 + (report.id % 5) * 0.04).toFixed(2)
+      const desiredResult = report.desiredEffect || 'ทำลายให้สิ้นสภาพ'
+      return {
+        targetInfo: {
+          id: report.tgt || `TGT-${String(report.id).padStart(3, '0')}`,
+          name: report.targetName || report.target,
+          type: report.type,
+          structure: report.targetDescription || report.type,
+          strength: report.strengthLevel || report.strength || report.targetStrength || 'ไม่ระบุ',
+          area: report.source,
+          details: report.targetDescription || report.type,
+          desiredResult,
+          imageName: 'Map Snapshot',
+          imagePreview: mapPreviewImage(report),
+          coordinates: report.dmpiCoordinates || defaultMapCoordinates
+        },
+        metrics: {
+          confidence: 82 + ((report.id * 3) % 14),
+          pk,
+          cep: 8 + report.id * 2
+        },
+        recommendations: [{ item: 'รอการกำหนดอาวุธ', size: desiredResult, qty: 1, pd: Math.max(0, Number(pk) - 0.08), pk }],
+        analysisText: `เป้าหมาย ${report.target} อยู่ในระดับ${importanceLabels[report.importance] || report.importance}`,
+        priority: report.pri ?? importanceLabels[report.importance] ?? report.importance,
+        generatedDate: new Date().toLocaleString('th-TH')
+      }
+    }
+
+    const exportReports = async (format, report = null) => {
+      if (!report) return
+      const targetName = report ? `_${report.target.replaceAll(' ', '_')}` : ''
+      const filename = `reports${targetName}_${new Date().toISOString().split('T')[0]}`
+      const data = buildReportExportData(report)
+      try {
+        if (format === 'pdf') await exportService.exportToPDF(data, `${filename}.pdf`)
+        else if (format === 'word') await exportService.exportToWord(data, `${filename}.docx`)
+        else return
+      } catch (error) {
+        console.error('Report export error:', error)
+        alert(`ไม่สามารถส่งออกไฟล์ได้: ${error.message}`)
+>>>>>>> Stashed changes
       }
     }
 
@@ -2348,6 +2615,90 @@ export default {
 .analysis-result-footer > span { color: #8298ad; font-size: 0.65rem; }
 .analysis-result-footer button { padding: 7px 13px; border: 1px solid #3978ba; border-radius: 8px; background: #0d6efd; color: #fff; font-family: inherit; font-size: 0.7rem; font-weight: 700; }
 
+<<<<<<< Updated upstream
+=======
+.edit-report-modal {
+  width: min(980px, 100%);
+}
+
+.edit-report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.edit-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.edit-form-field.full-width {
+  grid-column: span 2;
+}
+
+.edit-form-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.edit-form-field span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  line-height: 1.25;
+  color: #9fb8cf;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.edit-form-field input,
+.edit-form-field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid #3a536c;
+  border-radius: 9px;
+  outline: 0;
+  background: #101f30;
+  color: #eaf3fc;
+  font-family: inherit;
+  font-size: 0.76rem;
+}
+
+.edit-form-field input:focus,
+.edit-form-field select:focus {
+  border-color: #65a8ee;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.14);
+}
+
+.edit-report-footer {
+  margin: 2px -18px -16px;
+}
+
+.edit-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analysis-result-footer .edit-cancel-button {
+  border-color: #52697f;
+  background: #1a2d40;
+  color: #d7e3ef;
+}
+
+.analysis-result-footer .edit-cancel-button:hover {
+  border-color: #71899f;
+  background: #263d54;
+  color: #ffffff;
+}
+
+>>>>>>> Stashed changes
 .delete-modal-backdrop {
   position: fixed;
   inset: 0;

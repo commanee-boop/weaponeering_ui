@@ -161,6 +161,17 @@
               </div>
             </div>
           </div>
+          <div class="dropdown import-data-dropdown import-filter-action">
+            <button class="btn btn-outline-primary dropdown-toggle import-data-menu" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-upload"></i><span>Import Data</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" @click.stop>
+              <li><button class="dropdown-item" type="button" @click="importReports('csv')"><i class="bi bi-filetype-csv me-2"></i>CSV</button></li>
+              <li><button class="dropdown-item" type="button" @click="importReports('excel')"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Excel</button></li>
+              <li><button class="dropdown-item" type="button" @click="importReports('json')"><i class="bi bi-filetype-json me-2"></i>JSON</button></li>
+            </ul>
+            <input ref="importFileInput" class="d-none" type="file" @change="handleImportFile" />
+          </div>
           <div class="filter-field search-filter">
             <label for="text-search"><i class="bi bi-search"></i> ค้นหา</label>
             <div class="search-input-wrap">
@@ -176,11 +187,6 @@
         <div class="row report-data-row">
           <div class="col-12">
             <div class="card">
-              <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                  <i class="bi bi-list-ul"></i> รายการบันทึกข้อมูล
-                </h5>
-              </div>
               <div class="card-body">
                 <div v-if="filteredReports.length === 0" class="alert alert-info">
                   ไม่พบข้อมูลที่ตรงกับตัวกรอง
@@ -219,9 +225,8 @@
                           </button>
                           <div class="dropdown report-export-dropdown">
                             <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="ส่งออกรายงาน" @click.stop>
-                              <i class="bi bi-download"></i> นำออก
+                              <i class="bi bi-download"></i> ส่งออก
                             </button>
-<<<<<<< Updated upstream
                             <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end export-format-dropdown" @click.stop>
                               <li class="export-dropdown-header">
                                 <strong>รูปแบบเอกสาร</strong>
@@ -239,13 +244,11 @@
                                   <span><strong>Word</strong><small>เอกสารสำหรับแก้ไขและนำเสนอ</small></span>
                                 </button>
                               </li>
-=======
-                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" @click.stop>
-                              <li><button class="dropdown-item" type="button" @click.stop="exportReports('pdf', report)"><i class="bi bi-file-pdf me-2"></i>PDF</button></li>
-                              <li><button class="dropdown-item" type="button" @click.stop="exportReports('word', report)"><i class="bi bi-file-word me-2"></i>Word</button></li>
->>>>>>> Stashed changes
                             </ul>
                           </div>
+                          <button class="btn btn-sm btn-outline-warning" @click.stop="editReport(report)">
+                            <i class="bi bi-pencil-square"></i> แก้ไข
+                          </button>
                           <button class="btn btn-sm btn-outline-danger" @click.stop="requestDeleteReport(report)">
                             <i class="bi bi-trash"></i> ลบ
                           </button>
@@ -290,25 +293,41 @@
             <div class="analysis-result-body">
               <div class="analysis-target-banner">
                 <span class="analysis-target-icon"><i :class="targetTypeIcon(selectedReport.type)"></i></span>
-                <div><small>TARGET ID: TGT-{{ String(selectedReport.id).padStart(3, '0') }}</small><strong>{{ selectedReport.target }}</strong><span>{{ selectedReport.source }} · {{ selectedReport.type }}</span></div>
+                <div><small>{{ selectedReport.tgt }}</small><strong>{{ selectedReport.targetName }}</strong><span>{{ selectedReport.source }} · {{ selectedReport.type }}</span></div>
                 <span class="importance-badge" :class="selectedReport.importance"><i :class="importanceIcon(selectedReport.importance)"></i>{{ importanceLabels[selectedReport.importance] }}</span>
               </div>
 
               <div class="analysis-metric-grid">
-                <article><span class="metric-icon confidence"><i class="bi bi-speedometer2"></i></span><div><small>AI Confidence</small><strong>{{ selectedReport.confidence }}%</strong></div></article>
-                <article><span class="metric-icon weapon"><i class="bi bi-bullseye"></i></span><div><small>Recommendation</small><strong>{{ selectedReport.recommendation }}</strong></div></article>
+                <article><span class="metric-icon confidence"><i class="bi bi-flag-fill"></i></span><div><small>PRI</small><strong>{{ selectedReport.pri }}</strong></div></article>
+                <article><span class="metric-icon weapon"><i class="bi bi-shield-check"></i></span><div><small>ระดับความแข็งแรง</small><strong>{{ selectedReport.strengthLevel }}</strong></div></article>
                 <article><span class="metric-icon probability"><i class="bi bi-percent"></i></span><div><small>Pk</small><strong>{{ selectedReport.pk }}</strong></div></article>
                 <article><span class="metric-icon accuracy"><i class="bi bi-crosshair2"></i></span><div><small>CEP</small><strong>{{ selectedReport.cep }}</strong></div></article>
               </div>
 
+              <section class="analysis-current-section" aria-labelledby="current-target-data-title">
+                <h4 id="current-target-data-title"><i class="bi bi-database-check"></i> ข้อมูลเป้าหมายปัจจุบัน</h4>
+                <div class="analysis-current-grid">
+                  <article><small>TGT</small><strong>{{ selectedReport.tgt }}</strong></article>
+                  <article><small>ชื่อเป้าหมาย</small><strong>{{ selectedReport.targetName }}</strong></article>
+                  <article><small>PRI</small><strong>{{ selectedReport.pri }}</strong></article>
+                  <article><small>พิกัด</small><strong>{{ selectedReport.dmpiCoordinates }}</strong></article>
+                  <article><small>ความสูง (MSL)<br>(ft)</small><strong>{{ selectedReport.heightMslFt }}</strong></article>
+                  <article><small>รายละเอียดเป้าหมาย</small><strong>{{ selectedReport.targetDescription }}</strong></article>
+                  <article><small>ผลลัพธ์ที่ต้องการ</small><strong>{{ selectedReport.desiredEffect }}</strong></article>
+                  <article><small>อาวุธที่ใช้</small><strong>{{ selectedReport.weaponUsed }}</strong></article>
+                </div>
+              </section>
+
               <div class="analysis-detail-grid">
                 <div class="analysis-detail-card">
-                  <h4><i class="bi bi-clipboard-data"></i> รายละเอียดการวิเคราะห์</h4>
+                  <h4><i class="bi bi-clipboard-data"></i> ข้อมูลเพิ่มเติม</h4>
                   <dl>
+                    <div><dt>แหล่งที่มา</dt><dd>{{ selectedReport.source }}</dd></div>
                     <div><dt>ประเภทเป้าหมาย</dt><dd>{{ selectedReport.type }}</dd></div>
-                    <div><dt>ผลที่ต้องการ</dt><dd>{{ selectedReport.effect }}</dd></div>
+                    <div><dt>ความสำคัญเป้าหมาย</dt><dd>{{ selectedReport.targetImportance }}</dd></div>
+                    <div><dt>AI Confidence</dt><dd>{{ selectedReport.confidence }}%</dd></div>
                     <div><dt>วันที่วิเคราะห์</dt><dd>{{ formatDate(selectedReport.date) }}</dd></div>
-                    <div><dt>สถานะข้อมูล</dt><dd><span class="analysis-ready"><i class="bi bi-check-circle-fill"></i> พร้อมใช้งาน</span></dd></div>
+                    <div><dt>สถานะข้อมูล</dt><dd><span class="analysis-ready"><i class="bi bi-check-circle-fill"></i> {{ selectedReport.status }}</span></dd></div>
                   </dl>
                 </div>
                 <div class="analysis-summary-card">
@@ -321,13 +340,14 @@
 
             <footer class="analysis-result-footer">
               <span><i class="bi bi-calendar3"></i> {{ selectedReport.date }}</span>
-              <button type="button" @click="closeAnalysisResult"><i class="bi bi-check-lg"></i> ปิดหน้าต่าง</button>
+              <div class="analysis-footer-actions">
+                <button type="button" class="analysis-edit-button" @click="editReport(selectedReport)"><i class="bi bi-pencil-square"></i> แก้ไขข้อมูล</button>
+                <button type="button" @click="closeAnalysisResult"><i class="bi bi-check-lg"></i> ปิดหน้าต่าง</button>
+              </div>
             </footer>
           </section>
         </div>
 
-<<<<<<< Updated upstream
-=======
         <div v-if="editingReport" class="analysis-modal-backdrop" @click.self="closeEditReport">
           <section class="analysis-result-modal edit-report-modal" role="dialog" aria-modal="true" aria-labelledby="edit-report-title">
             <header class="analysis-result-header">
@@ -338,90 +358,30 @@
               <button type="button" class="analysis-modal-close" aria-label="ปิด" @click="closeEditReport"><i class="bi bi-x-lg"></i></button>
             </header>
 
-            <form class="analysis-result-body edit-report-form" @submit.prevent="requestEditConfirmation">
+            <form class="analysis-result-body edit-report-form" @submit.prevent="saveEditedReport">
               <div class="analysis-target-banner">
                 <span class="analysis-target-icon"><i :class="targetTypeIcon(editForm.type)"></i></span>
-                <div><small>{{ editForm.tgt || `TGT-${String(editingReport.id).padStart(3, '0')}` }}</small><strong>{{ editForm.targetName || 'ชื่อเป้าหมายใหม่' }}</strong><span>{{ editForm.source }} · {{ editForm.type }}</span></div>
+                <div><small>{{ editForm.tgt || `TGT-${String(editingReport.id).padStart(3, '0')}` }}</small><strong>{{ editForm.targetName || editForm.target }}</strong><span>{{ editForm.source }} · {{ editForm.type }}</span></div>
                 <span class="importance-badge" :class="editForm.importance"><i :class="importanceIcon(editForm.importance)"></i>{{ importanceLabels[editForm.importance] }}</span>
               </div>
 
               <div class="edit-form-grid">
-                <label class="edit-form-field">
-                  <span><i class="bi bi-tag"></i> ชื่อเป้าหมาย</span>
-                  <input v-model.trim="editForm.targetName" type="text" required />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-hash"></i> TGT</span>
-                  <input v-model.trim="editForm.tgt" type="text" required />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-crosshair"></i> เป้าหมาย</span>
-                  <input v-model.trim="editForm.target" type="text" required />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-123"></i> Pri</span>
-                  <input v-model.number="editForm.pri" type="number" step="1" required />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-broadcast-pin"></i> แหล่งที่มา</span>
-                  <select v-model="editForm.source" required>
-                    <option v-for="source in sourceOptions" :key="source" :value="source">{{ source }}</option>
-                  </select>
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-buildings"></i> ประเภท</span>
-                  <select v-model="editForm.type" required>
-                    <option v-for="type in typeOptions" :key="type" :value="type">{{ type }}</option>
-                  </select>
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-card-text"></i> ลักษณะของเป้าหมาย</span>
-                  <input v-model.trim="editForm.targetDescription" type="text" required />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-exclamation-diamond"></i> ความสำคัญเป้าหมาย</span>
-                  <input v-model.trim="editForm.targetImportance" type="text" placeholder="กรอกความสำคัญเป้าหมาย" />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-rulers"></i> ความสูง (MSL)(ft.)</span>
-                  <input v-model.number="editForm.heightMslFt" type="number" step="1" required />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-geo-alt"></i> DMPI: พิกัด (Lat/Long)</span>
-                  <input
-                    v-model.trim="editForm.dmpiCoordinates"
-                    type="text"
-                    inputmode="decimal"
-                    pattern="[0-9.,\\-\\s]*"
-                    placeholder="14.123456, 101.123456"
-                    required
-                    @input="sanitizeDmpiCoordinates"
-                  />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-bullseye"></i> ผลกระทบที่ต้องการ</span>
-                  <select v-model="editForm.desiredEffect" required>
-                    <option v-for="effect in desiredEffectOptions" :key="effect" :value="effect">{{ effect }}</option>
-                  </select>
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-flag"></i> ความสำคัญ</span>
-                  <select v-model="editForm.importance" required>
-                    <option v-for="level in importanceOptions" :key="level.value" :value="level.value">{{ level.label }}</option>
-                  </select>
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-crosshair2"></i> อาวุธที่ใช้</span>
-                  <input v-model.trim="editForm.weaponUsed" type="text" placeholder="กรอกอาวุธที่ใช้" />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-calendar3"></i> วันที่</span>
-                  <input v-model="editForm.dateValue" type="date" required />
-                </label>
-                <label class="edit-form-field">
-                  <span><i class="bi bi-check-circle"></i> สถานะ</span>
-                  <input v-model.trim="editForm.status" type="text" required />
-                </label>
+                <label class="edit-form-field"><span><i class="bi bi-tag"></i> ชื่อเป้าหมาย</span><input v-model.trim="editForm.targetName" type="text" required /></label>
+                <label class="edit-form-field"><span><i class="bi bi-hash"></i> TGT</span><input v-model.trim="editForm.tgt" type="text" required /></label>
+                <label class="edit-form-field"><span><i class="bi bi-crosshair"></i> เป้าหมาย</span><input v-model.trim="editForm.target" type="text" required /></label>
+                <label class="edit-form-field"><span><i class="bi bi-123"></i> PRI</span><input v-model.number="editForm.pri" type="number" step="1" required /></label>
+                <label class="edit-form-field"><span><i class="bi bi-broadcast-pin"></i> แหล่งที่มา</span><select v-model="editForm.source" required><option v-for="source in sourceOptions" :key="source" :value="source">{{ source }}</option></select></label>
+                <label class="edit-form-field"><span><i class="bi bi-buildings"></i> ประเภท</span><select v-model="editForm.type" required><option v-for="type in typeOptions" :key="type" :value="type">{{ type }}</option></select></label>
+                <label class="edit-form-field"><span><i class="bi bi-card-text"></i> ลักษณะของเป้าหมาย</span><input v-model.trim="editForm.targetDescription" type="text" required /></label>
+                <label class="edit-form-field"><span><i class="bi bi-exclamation-diamond"></i> ความสำคัญเป้าหมาย</span><input v-model.trim="editForm.targetImportance" type="text" placeholder="กรอกความสำคัญเป้าหมาย" /></label>
+                <label class="edit-form-field"><span><i class="bi bi-shield-check"></i> ระดับความแข็งแรง</span><select v-model="editForm.strengthLevel"><option value="">-- เลือกระดับความแข็งแรง --</option><option v-for="strength in strengthOptions" :key="strength" :value="strength">{{ strength }}</option></select></label>
+                <label class="edit-form-field"><span><i class="bi bi-rulers"></i> ความสูง (MSL)(ft.)</span><input v-model.number="editForm.heightMslFt" type="number" step="1" /></label>
+                <label class="edit-form-field"><span><i class="bi bi-geo-alt"></i> DMPI: พิกัด (Lat/Long)</span><input v-model.trim="editForm.dmpiCoordinates" type="text" inputmode="decimal" pattern="[0-9.,\\-\\s]*" placeholder="14.123456, 101.123456" @input="sanitizeDmpiCoordinates" /></label>
+                <label class="edit-form-field"><span><i class="bi bi-bullseye"></i> ผลกระทบที่ต้องการ</span><select v-model="editForm.desiredEffect"><option v-for="effect in desiredEffectOptions" :key="effect" :value="effect">{{ effect }}</option></select></label>
+                <label class="edit-form-field"><span><i class="bi bi-flag"></i> ความสำคัญ</span><select v-model="editForm.importance" required><option v-for="level in importanceOptions" :key="level.value" :value="level.value">{{ level.label }}</option></select></label>
+                <label class="edit-form-field"><span><i class="bi bi-crosshair2"></i> อาวุธที่ใช้</span><input v-model.trim="editForm.weaponUsed" type="text" placeholder="กรอกอาวุธที่ใช้" /></label>
+                <label class="edit-form-field"><span><i class="bi bi-calendar3"></i> วันที่</span><input v-model="editForm.dateValue" type="date" required /></label>
+                <label class="edit-form-field full-width"><span><i class="bi bi-check-circle"></i> สถานะ</span><input v-model.trim="editForm.status" type="text" required /></label>
               </div>
 
               <footer class="analysis-result-footer edit-report-footer">
@@ -435,7 +395,6 @@
           </section>
         </div>
 
->>>>>>> Stashed changes
         <div v-if="reportPendingDelete" class="delete-modal-backdrop" @click.self="cancelDeleteReport">
           <section class="delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title">
             <button type="button" class="delete-modal-close" aria-label="ปิด" @click="cancelDeleteReport"><i class="bi bi-x-lg"></i></button>
@@ -534,11 +493,10 @@ export default {
       query: ''
     })
     const openFilterDropdown = ref('')
+    const importFileInput = ref(null)
+    const selectedImportFormat = ref('')
     const selectedReport = ref(null)
-<<<<<<< Updated upstream
-=======
     const editingReport = ref(null)
-    const showEditConfirm = ref(false)
     const editForm = ref({
       targetName: '',
       tgt: '',
@@ -548,6 +506,7 @@ export default {
       type: '',
       targetDescription: '',
       targetImportance: '',
+      strengthLevel: '',
       heightMslFt: '',
       dmpiCoordinates: '',
       desiredEffect: '',
@@ -556,7 +515,6 @@ export default {
       dateValue: '',
       status: ''
     })
->>>>>>> Stashed changes
     const reportPendingDelete = ref(null)
     const showFinalDeleteConfirm = ref(false)
     const currentPage = ref(1)
@@ -577,6 +535,8 @@ export default {
       { value: 'medium', label: 'สำคัญ', icon: 'bi bi-dash-circle' },
       { value: 'general', label: 'ทั่วไป', icon: 'bi bi-check-circle' }
     ]
+    const desiredEffectOptions = ['ทำลาย', 'ทำให้หมดขีดความสามารถ', 'ทำลายให้สิ้นสภาพ']
+    const strengthOptions = ['เปราะบาง', 'แข็งแรง', 'แข็งแรงพิเศษ']
 
     const sourceOptions = computed(() => [...new Set(reports.value.map(report => report.source))])
     const typeOptions = computed(() => [...new Set(reports.value.map(report => report.type))])
@@ -753,6 +713,25 @@ export default {
       }
     }
 
+    const importReports = (format) => {
+      const input = importFileInput.value
+      if (!input) return
+      selectedImportFormat.value = format
+      input.accept = {
+        csv: '.csv,text/csv',
+        excel: '.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel',
+        json: '.json,application/json'
+      }[format] || ''
+      input.click()
+    }
+
+    const handleImportFile = (event) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+      alert(`เลือกไฟล์ ${file.name} สำหรับนำเข้า ${selectedImportFormat.value.toUpperCase()} แล้ว`)
+      event.target.value = ''
+    }
+
     const buildAnalysisReport = (report) => {
       const recommendations = {
         อาคาร: '2,000 ปอนด์',
@@ -770,14 +749,27 @@ export default {
         บังเกอร์: 'สูญเสียการควบคุม',
         รันเวย์: 'สิ้นสภาพ (Destroy)'
       }
+      const targetName = report.targetName || report.target || 'ไม่ระบุชื่อเป้าหมาย'
+      const desiredEffect = report.desiredEffect || effects[report.type] || 'สิ้นสภาพ (Destroy)'
+      const weaponUsed = report.weaponUsed || recommendations[report.type] || 'รอการกำหนดอาวุธ'
       return {
         ...report,
+        tgt: report.tgt || `TGT-${String(report.id).padStart(3, '0')}`,
+        targetName,
+        pri: report.pri ?? importanceLabels[report.importance] ?? '-',
+        dmpiCoordinates: report.dmpiCoordinates || '-',
+        heightMslFt: report.heightMslFt ?? '-',
+        targetDescription: report.targetDescription || report.details || report.type || '-',
+        targetImportance: report.targetImportance || importanceLabels[report.importance] || '-',
+        strengthLevel: report.strengthLevel || report.strength || report.targetStrength || 'ไม่ระบุ',
+        desiredEffect,
+        weaponUsed,
         confidence: 82 + ((report.id * 3) % 14),
-        recommendation: recommendations[report.type] || '1,000 ปอนด์',
+        recommendation: weaponUsed,
         pk: (0.72 + (report.id % 5) * 0.04).toFixed(2),
-        cep: `${8 + report.id * 2} m`,
-        effect: effects[report.type] || 'สิ้นสภาพ (Destroy)',
-        analysis: `เป้าหมาย ${report.target} ถูกจัดอยู่ในระดับ${importanceLabels[report.importance]} ระบบประเมินลักษณะโครงสร้างและข้อมูลแวดล้อมแล้ว พบว่าสามารถดำเนินการตามคำแนะนำโดยมีโอกาสบรรลุผลในระดับสูง`
+        cep: report.cep ?? (8 + report.id * 2),
+        effect: desiredEffect,
+        analysis: report.analysis || `เป้าหมาย ${targetName} ถูกจัดอยู่ในระดับ${importanceLabels[report.importance] || report.targetImportance || 'ไม่ระบุ'} ระบบประเมินลักษณะโครงสร้างและข้อมูลแวดล้อมแล้ว พบว่าสามารถดำเนินการตามคำแนะนำโดยมีโอกาสบรรลุผลในระดับสูง`
       }
     }
 
@@ -792,91 +784,61 @@ export default {
       if (report) openAnalysisResult(report)
     }
 
-<<<<<<< Updated upstream
-=======
+    const emptyEditForm = () => ({
+      targetName: '', tgt: '', target: '', pri: '', source: '', type: '',
+      targetDescription: '', targetImportance: '', strengthLevel: '', heightMslFt: '', dmpiCoordinates: '',
+      desiredEffect: '', importance: '', weaponUsed: '', dateValue: '', status: ''
+    })
+
     const editReport = (report) => {
       editingReport.value = report
       editForm.value = {
-        targetName: report.targetName || '',
+        targetName: report.targetName || report.target || '',
         tgt: report.tgt || `TGT-${String(report.id).padStart(3, '0')}`,
-        target: report.target,
+        target: report.target || '',
         pri: report.pri ?? report.id,
-        source: report.source,
-        type: report.type,
-        targetDescription: report.targetDescription || report.type,
+        source: report.source || '',
+        type: report.type || '',
+        targetDescription: report.targetDescription || report.details || report.type || '',
         targetImportance: report.targetImportance || '',
+        strengthLevel: report.strengthLevel || report.strength || report.targetStrength || '',
         heightMslFt: report.heightMslFt ?? '',
         dmpiCoordinates: report.dmpiCoordinates || '',
         desiredEffect: report.desiredEffect || desiredEffectOptions[0],
-        importance: report.importance,
+        importance: report.importance || 'general',
         weaponUsed: report.weaponUsed || '',
-        dateValue: report.dateValue,
-        status: report.status
+        dateValue: report.dateValue || '',
+        status: report.status || ''
       }
       closeAnalysisResult()
     }
 
     const closeEditReport = () => {
-      showEditConfirm.value = false
       editingReport.value = null
-      editForm.value = {
-        targetName: '',
-        tgt: '',
-        target: '',
-        pri: '',
-        source: '',
-        type: '',
-        targetDescription: '',
-        targetImportance: '',
-        heightMslFt: '',
-        dmpiCoordinates: '',
-        desiredEffect: '',
-        importance: '',
-        weaponUsed: '',
-        dateValue: '',
-        status: ''
-      }
-    }
-
-    const formatEditedDate = (dateValue, currentDate = '') => {
-      if (!dateValue) return currentDate
-      const [year, month, day] = dateValue.split('-')
-      const buddhistYear = Number(year) + 543
-      const time = currentDate.split(' ')[1] || '00:00'
-      return `${day}/${month}/${buddhistYear} ${time}`
-    }
-
-    const requestEditConfirmation = () => {
-      if (editingReport.value) showEditConfirm.value = true
-    }
-
-    const closeEditConfirmation = () => {
-      showEditConfirm.value = false
+      editForm.value = emptyEditForm()
     }
 
     const sanitizeDmpiCoordinates = () => {
       editForm.value.dmpiCoordinates = String(editForm.value.dmpiCoordinates || '').replace(/[^0-9.,\-\s]/g, '')
     }
 
+    const formatEditedDate = (dateValue, currentDate = '') => {
+      if (!dateValue) return currentDate
+      const [year, month, day] = dateValue.split('-')
+      const time = currentDate.split(' ')[1] || '00:00'
+      return `${day}/${month}/${Number(year) + 543} ${time}`
+    }
+
     const saveEditedReport = () => {
       if (!editingReport.value) return
       sanitizeDmpiCoordinates()
       const reportId = editingReport.value.id
-      const currentReport = reports.value.find(report => report.id === reportId)
-      if (!currentReport) return
-
-      const updatedReport = {
-        ...currentReport,
-        ...editForm.value,
-        date: formatEditedDate(editForm.value.dateValue, currentReport.date)
-      }
-
-      reports.value = reports.value.map(report => report.id === reportId ? updatedReport : report)
-      showEditConfirm.value = false
+      reports.value = reports.value.map(report => report.id === reportId
+        ? { ...report, ...editForm.value, date: formatEditedDate(editForm.value.dateValue, report.date) }
+        : report)
       closeEditReport()
     }
 
->>>>>>> Stashed changes
     const requestDeleteReport = (report) => {
       reportPendingDelete.value = report
       showFinalDeleteConfirm.value = false
@@ -896,7 +858,6 @@ export default {
       reportPendingDelete.value = null
     }
 
-<<<<<<< Updated upstream
     const sanitizeFilename = (value) => String(value || 'report')
       .trim()
       .replace(/[\\/:*?"<>|]+/g, '')
@@ -908,17 +869,20 @@ export default {
 
       return {
         targetInfo: {
-          id: `TGT-${String(analysisReport.id).padStart(3, '0')}`,
-          name: analysisReport.target,
+          id: analysisReport.tgt || `TGT-${String(analysisReport.id).padStart(3, '0')}`,
+          name: analysisReport.targetName || analysisReport.target,
           type: analysisReport.type,
-          structure: analysisReport.type,
-          strength: importanceLabels[analysisReport.importance] || analysisReport.importance,
+          structure: analysisReport.targetDescription || analysisReport.type,
+          targetImportance: analysisReport.targetImportance || '',
+          strength: analysisReport.strengthLevel || analysisReport.strength || analysisReport.targetStrength || 'ไม่ระบุ',
           area: analysisReport.source,
-          desiredResult: analysisReport.effect || 'N/A',
-          weapon: analysisReport.recommendation || 'N/A',
-          details: analysisReport.details || analysisReport.analysis || 'N/A',
+          desiredResult: analysisReport.desiredEffect || analysisReport.effect || 'N/A',
+          heightMslFt: analysisReport.heightMslFt ?? '',
+          weaponUsed: analysisReport.weaponUsed || '',
+          details: analysisReport.targetDescription || analysisReport.details || analysisReport.analysis || 'N/A',
           imageName: analysisReport.imageName || 'N/A',
           imagePreview: analysisReport.imagePreview || '',
+          coordinates: analysisReport.dmpiCoordinates || '',
           latitude: analysisReport.latitude || 'N/A',
           longitude: analysisReport.longitude || 'N/A'
         },
@@ -939,51 +903,8 @@ export default {
           }
         ],
         analysisText: analysisReport.analysis,
-        priority: importanceLabels[analysisReport.importance] || analysisReport.importance,
+        priority: analysisReport.pri ?? importanceLabels[analysisReport.importance] ?? analysisReport.importance,
         generatedDate: new Date().toLocaleString('th-TH')
-=======
-    const buildReportExportData = report => {
-      const pk = (0.72 + (report.id % 5) * 0.04).toFixed(2)
-      const desiredResult = report.desiredEffect || 'ทำลายให้สิ้นสภาพ'
-      return {
-        targetInfo: {
-          id: report.tgt || `TGT-${String(report.id).padStart(3, '0')}`,
-          name: report.targetName || report.target,
-          type: report.type,
-          structure: report.targetDescription || report.type,
-          strength: report.strengthLevel || report.strength || report.targetStrength || 'ไม่ระบุ',
-          area: report.source,
-          details: report.targetDescription || report.type,
-          desiredResult,
-          imageName: 'Map Snapshot',
-          imagePreview: mapPreviewImage(report),
-          coordinates: report.dmpiCoordinates || defaultMapCoordinates
-        },
-        metrics: {
-          confidence: 82 + ((report.id * 3) % 14),
-          pk,
-          cep: 8 + report.id * 2
-        },
-        recommendations: [{ item: 'รอการกำหนดอาวุธ', size: desiredResult, qty: 1, pd: Math.max(0, Number(pk) - 0.08), pk }],
-        analysisText: `เป้าหมาย ${report.target} อยู่ในระดับ${importanceLabels[report.importance] || report.importance}`,
-        priority: report.pri ?? importanceLabels[report.importance] ?? report.importance,
-        generatedDate: new Date().toLocaleString('th-TH')
-      }
-    }
-
-    const exportReports = async (format, report = null) => {
-      if (!report) return
-      const targetName = report ? `_${report.target.replaceAll(' ', '_')}` : ''
-      const filename = `reports${targetName}_${new Date().toISOString().split('T')[0]}`
-      const data = buildReportExportData(report)
-      try {
-        if (format === 'pdf') await exportService.exportToPDF(data, `${filename}.pdf`)
-        else if (format === 'word') await exportService.exportToWord(data, `${filename}.docx`)
-        else return
-      } catch (error) {
-        console.error('Report export error:', error)
-        alert(`ไม่สามารถส่งออกไฟล์ได้: ${error.message}`)
->>>>>>> Stashed changes
       }
     }
 
@@ -997,20 +918,20 @@ export default {
       try {
         if (format === 'pdf') {
           await exportService.exportToPDF(exportData, `${filename}.pdf`)
-          alert('นำออก PDF สำเร็จ')
+          alert('ส่งออก PDF สำเร็จ')
           return
         }
 
         if (format === 'word') {
           await exportService.exportToWord(exportData, `${filename}.docx`)
-          alert('นำออก Word สำเร็จ')
+          alert('ส่งออก Word สำเร็จ')
           return
         }
 
         alert('ไม่พบรูปแบบไฟล์ที่รองรับ')
       } catch (error) {
         console.error('Report Export Error:', error)
-        alert(`เกิดข้อผิดพลาดในการนำออก: ${error.message}`)
+        alert(`เกิดข้อผิดพลาดในการส่งออก: ${error.message}`)
       }
     }
 
@@ -1023,6 +944,10 @@ export default {
       if (event.key !== 'Escape') return
       if (showFinalDeleteConfirm.value) {
         closeFinalDeleteConfirmation()
+        return
+      }
+      if (editingReport.value) {
+        closeEditReport()
         return
       }
       closeAnalysisResult()
@@ -1041,7 +966,10 @@ export default {
       reports,
       filters,
       openFilterDropdown,
+      importFileInput,
       selectedReport,
+      editingReport,
+      editForm,
       reportPendingDelete,
       showFinalDeleteConfirm,
       filteredReports,
@@ -1059,6 +987,8 @@ export default {
       importancePercent,
       importanceLabels,
       importanceOptions,
+      desiredEffectOptions,
+      strengthOptions,
       importanceStats,
       sourceStats,
       sourceLead,
@@ -1079,9 +1009,15 @@ export default {
       toggleFilterDropdown,
       selectFilter,
       openDatePicker,
+      importReports,
+      handleImportFile,
       openAnalysisResult,
       closeAnalysisResult,
       viewReport,
+      editReport,
+      closeEditReport,
+      sanitizeDmpiCoordinates,
+      saveEditedReport,
       requestDeleteReport,
       cancelDeleteReport,
       requestFinalDeleteConfirmation,
@@ -1871,7 +1807,7 @@ export default {
 
 .filter-bar {
   display: grid;
-  grid-template-columns: minmax(145px, 1fr) minmax(145px, 1fr) minmax(160px, 1fr) minmax(260px, 1.6fr) minmax(190px, 1.25fr) auto;
+  grid-template-columns: minmax(145px, 1fr) minmax(145px, 1fr) minmax(160px, 1fr) minmax(260px, 1.6fr) auto minmax(190px, 1.25fr) auto;
   align-items: end;
   gap: 8px;
   margin-bottom: 10px;
@@ -2187,6 +2123,63 @@ export default {
 .importance-badge.key { background: rgba(220, 53, 69, 0.17); color: #ff7380; }
 .importance-badge.medium { background: rgba(255, 193, 7, 0.16); color: #ffd14f; }
 .importance-badge.general { background: rgba(25, 135, 84, 0.18); color: #55d497; }
+
+.reports-page .filter-bar .import-data-menu.btn {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 1px solid #3a5877 !important;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #13283d, #0e1d2c) !important;
+  box-shadow: none !important;
+  color: #91a9c1 !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.import-filter-action {
+  align-self: end;
+}
+
+.import-filter-action .import-data-menu {
+  width: 100%;
+  height: 36px;
+  white-space: nowrap;
+}
+
+.reports-page .filter-bar .import-data-menu.btn:hover,
+.reports-page .filter-bar .import-data-menu.btn:focus,
+.reports-page .filter-bar .import-data-menu.btn.show {
+  border-color: #6fb1f5;
+  background: linear-gradient(180deg, #17334d, #102337) !important;
+  color: #ffffff !important;
+}
+
+.reports-page .filter-bar .import-data-menu > i { color: #ffffff; }
+
+.import-data-dropdown .dropdown-menu {
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid #35516e;
+  border-radius: 10px;
+  background: #101f30;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.38);
+}
+
+.import-data-dropdown .dropdown-item {
+  padding: 8px 10px;
+  border-radius: 7px;
+  color: #d7e4f0;
+  font-size: 0.72rem;
+}
+
+.import-data-dropdown .dropdown-item:hover {
+  background: #1c4268;
+  color: #fff;
+}
 
 .report-table-block { overflow: hidden; border: 1px solid #2b4056; border-radius: 10px; background: #0c1723; }
 .report-table-block .table-responsive { overflow-x: auto; }
@@ -2597,6 +2590,59 @@ export default {
 .metric-icon.probability { background: #d39e00; }
 .metric-icon.accuracy { background: #198754; }
 
+.analysis-current-section {
+  margin: 0 0 12px;
+  padding: 13px;
+  border: 1px solid #2c4863;
+  border-radius: 12px;
+  background: rgba(8, 22, 35, 0.78);
+}
+
+.analysis-current-section h4 {
+  margin: 0 0 10px;
+  color: #dceaff;
+  font-size: 0.78rem;
+}
+
+.analysis-current-section h4 i {
+  margin-right: 6px;
+  color: #6ea8fe;
+}
+
+.analysis-current-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.analysis-current-grid article {
+  display: flex;
+  min-width: 0;
+  min-height: 74px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid #2b455f;
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(22, 48, 72, 0.88), rgba(12, 29, 45, 0.9));
+}
+
+.analysis-current-grid small {
+  color: #7f9ab3;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.analysis-current-grid strong {
+  overflow-wrap: anywhere;
+  color: #f1f7fd;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .analysis-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .analysis-detail-card,
 .analysis-summary-card { padding: 13px; border: 1px solid #2c445d; border-radius: 11px; background: rgba(10, 24, 38, 0.8); }
@@ -2615,10 +2661,24 @@ export default {
 .analysis-result-footer > span { color: #8298ad; font-size: 0.65rem; }
 .analysis-result-footer button { padding: 7px 13px; border: 1px solid #3978ba; border-radius: 8px; background: #0d6efd; color: #fff; font-family: inherit; font-size: 0.7rem; font-weight: 700; }
 
-<<<<<<< Updated upstream
-=======
+.analysis-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analysis-result-footer .analysis-edit-button {
+  border-color: #c58c17;
+  background: #8a620d;
+}
+
+.analysis-result-footer .analysis-edit-button:hover {
+  border-color: #e8ad32;
+  background: #ae7b12;
+}
+
 .edit-report-modal {
-  width: min(980px, 100%);
+  width: min(1080px, 100%);
 }
 
 .edit-report-form {
@@ -2633,10 +2693,6 @@ export default {
   gap: 12px;
 }
 
-.edit-form-field.full-width {
-  grid-column: span 2;
-}
-
 .edit-form-field {
   display: flex;
   min-width: 0;
@@ -2645,21 +2701,25 @@ export default {
   margin: 0;
 }
 
-.edit-form-field span {
+.edit-form-field.full-width {
+  grid-column: 1 / -1;
+}
+
+.edit-form-field > span {
   display: inline-flex;
+  min-height: 22px;
   align-items: center;
   gap: 6px;
-  min-height: 22px;
-  line-height: 1.25;
   color: #9fb8cf;
   font-size: 0.68rem;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .edit-form-field input,
 .edit-form-field select {
   width: 100%;
-  min-height: 38px;
+  min-height: 40px;
   padding: 7px 10px;
   border: 1px solid #3a536c;
   border-radius: 9px;
@@ -2698,7 +2758,6 @@ export default {
   color: #ffffff;
 }
 
->>>>>>> Stashed changes
 .delete-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -2839,14 +2898,16 @@ h2 {
   }
 
   .date-filter { grid-column: span 2; }
-  .search-filter { grid-column: span 2; }
+  .import-filter-action { grid-column: 3; grid-row: 2; }
+  .search-filter { grid-column: 4; grid-row: 2; }
   .clear-filter-button { grid-column: 4; grid-row: 1; }
 }
 
 @media (max-width: 900px) {
   .filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .date-filter, .search-filter { grid-column: span 2; }
-  .clear-filter-button { grid-column: 2; grid-row: 2; }
+  .date-filter, .search-filter { grid-column: span 2; grid-row: auto; }
+  .import-filter-action { grid-column: 1; grid-row: auto; }
+  .clear-filter-button { grid-column: 2; grid-row: auto; }
 }
 
 @media (max-width: 1050px) {
@@ -2897,6 +2958,7 @@ h2 {
   .filter-field { flex: 1 1 155px; }
   .date-filter { flex-basis: 280px; }
   .search-filter { flex-basis: 210px; }
+  .import-filter-action { flex: 1 1 130px; align-self: flex-end; }
   .clear-filter-button { flex: 1 1 130px; align-self: flex-end; }
   h2 { margin-bottom: 12px !important; font-size: 1.15rem; }
   .row { --bs-gutter-y: 12px; }
@@ -2912,8 +2974,15 @@ h2 {
   .analysis-result-header, .analysis-result-footer { padding: 11px 12px; }
   .analysis-result-body { padding: 12px; }
   .analysis-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analysis-current-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analysis-detail-grid { grid-template-columns: 1fr; }
   .analysis-target-banner { align-items: flex-start; flex-wrap: wrap; }
+  .analysis-result-footer { align-items: stretch; gap: 9px; flex-direction: column; }
+  .analysis-footer-actions { justify-content: flex-end; }
+  .edit-form-grid { grid-template-columns: 1fr; }
+  .edit-form-field.full-width { grid-column: auto; }
+  .edit-report-footer { align-items: stretch; flex-direction: column; margin: 0 -12px -12px; }
+  .edit-footer-actions { justify-content: flex-end; }
 }
 
 /* Legacy scoped light rules are disabled; global rules below target the page correctly. */
@@ -3104,6 +3173,14 @@ body.light-theme .reports-page .clear-filter-button { border-color: #aebfd0; bac
 
 body.light-theme .reports-page .card { border-color: #c6d4e1 !important; background: #fff !important; box-shadow: 0 6px 20px rgba(29,61,92,.1); }
 body.light-theme .reports-page .card-body { background: #fff !important; color: #1d344a !important; }
+body.light-theme .reports-page .filter-bar .import-data-menu.btn { border-color: #b9cad9 !important; background: #f8fbfe !important; color: #19324a !important; }
+body.light-theme .reports-page .filter-bar .import-data-menu.btn:hover,
+body.light-theme .reports-page .filter-bar .import-data-menu.btn:focus,
+body.light-theme .reports-page .filter-bar .import-data-menu.btn.show { border-color: #0d6efd !important; background: #e8f2fd !important; color: #0d4f9f !important; }
+body.light-theme .reports-page .filter-bar .import-data-menu > i { color: #1769c2; }
+body.light-theme .reports-page .import-data-dropdown .dropdown-menu { border-color: #bdccda; background: #fff; box-shadow: 0 12px 28px rgba(26,54,82,.18); }
+body.light-theme .reports-page .import-data-dropdown .dropdown-item { color: #29445c; }
+body.light-theme .reports-page .import-data-dropdown .dropdown-item:hover { background: #e7f1ff; color: #0d5cab; }
 body.light-theme .reports-page .report-table-block { border-color: #c8d6e3; background: #fff; }
 body.light-theme .reports-page .table-pagination { border-top-color: #cfdae5; background: #f4f8fc; }
 body.light-theme .reports-page .pagination-summary { color: #526d82; }
@@ -3140,13 +3217,23 @@ body.light-theme .reports-page .analysis-result-header,
 body.light-theme .reports-page .analysis-result-footer { border-color: #cbd8e4; background: #e8f1f9 !important; }
 body.light-theme .reports-page .analysis-target-banner,
 body.light-theme .reports-page .analysis-metric-grid article,
+body.light-theme .reports-page .analysis-current-section,
+body.light-theme .reports-page .analysis-current-grid article,
 body.light-theme .reports-page .analysis-detail-card,
 body.light-theme .reports-page .analysis-summary-card { border-color: #c4d3e1; background: #fff !important; }
 body.light-theme .reports-page .analysis-result-title h3,
 body.light-theme .reports-page .analysis-target-banner strong,
 body.light-theme .reports-page .analysis-metric-grid strong,
+body.light-theme .reports-page .analysis-current-grid strong,
 body.light-theme .reports-page .analysis-detail-card dd { color: #17324a; }
+body.light-theme .reports-page .analysis-current-section h4 { color: #24445f; }
+body.light-theme .reports-page .analysis-current-grid small { color: #60788e; }
 body.light-theme .reports-page .analysis-summary-card p { color: #4d657b; }
+body.light-theme .reports-page .edit-form-field > span { color: #48627a; }
+body.light-theme .reports-page .edit-form-field input,
+body.light-theme .reports-page .edit-form-field select { border-color: #b9cad9; background: #fff; color: #19324a; color-scheme: light; }
+body.light-theme .reports-page .edit-form-field input::placeholder { color: #7a8fa2; }
+body.light-theme .reports-page .analysis-result-footer .edit-cancel-button { border-color: #aebfd0; background: #f1f5f9; color: #385268; }
 body.light-theme .reports-page .delete-confirm-modal { border-color: #e1b7bc; background: radial-gradient(circle at 50% 0,rgba(220,53,69,.1),transparent 38%),#fff !important; box-shadow: 0 24px 70px rgba(40,65,88,.22); }
 body.light-theme .reports-page .delete-modal-close { border-color: #b9cad9; background: #f5f8fb; color: #38546d; }
 body.light-theme .reports-page .delete-confirm-modal h3 { color: #17324a; }

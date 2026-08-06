@@ -18,10 +18,7 @@
     "bootstrap-icons": "^1.13.1",
     "cesium": "1.117.0",
     "docx": "^9.7.1",
-<<<<<<< Updated upstream
-=======
     "html2canvas": "^1.4.1",
->>>>>>> Stashed changes
     "jspdf": "^4.2.1",
     "vite-plugin-static-copy": "^2.3.2",
     "vue": "^3.5.12",

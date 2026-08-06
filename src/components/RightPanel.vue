@@ -171,7 +171,7 @@
       <div class="mt-4 pt-4 border-top">
         <div class="section-title save-export-title mb-3">
           <i class="bi bi-download"></i>
-          <span>บันทึกข้อมูล และ นำออก</span>
+          <span>บันทึกข้อมูลและส่งออก</span>
         </div>
         <div ref="exportMenuRef" class="action-buttons">
           <button class="btn btn-success btn-sm w-100 mb-2" @click="openSaveModal">
@@ -181,21 +181,14 @@
           <div class="export-control">
             <button class="btn btn-outline-primary btn-sm w-100 export-toggle" type="button" :aria-expanded="showExportMenu" @click.stop="showExportMenu = !showExportMenu">
               <i class="bi bi-download"></i>
-              <span>นำออก</span>
+              <span>ส่งออก</span>
               <i class="bi bi-chevron-down export-chevron" :class="{ open: showExportMenu }"></i>
             </button>
             <div v-if="showExportMenu" class="export-format-menu" role="menu">
-<<<<<<< Updated upstream
               <div class="export-format-heading">
                 <strong>รูปแบบเอกสาร</strong>
                 <small>เลือกไฟล์สำหรับจัดเก็บหรือเสนอรายงาน</small>
               </div>
-=======
-              <button type="button" role="menuitem" @click="exportData('word')">
-                <span class="export-format-icon word"><i class="bi bi-file-earmark-word"></i></span>
-                <span><strong>Word</strong><small>เอกสาร .doc</small></span>
-              </button>
->>>>>>> Stashed changes
               <button type="button" role="menuitem" @click="exportData('pdf')">
                 <span class="export-format-icon pdf"><i class="bi bi-file-earmark-pdf"></i></span>
                 <span><strong>PDF</strong><small>เอกสารพร้อมพิมพ์และจัดเก็บ</small></span>
@@ -429,9 +422,10 @@ export default {
         showSaveConfirmation.value = false
         const existing = JSON.parse(window.localStorage.getItem(DB_KEY) || '[]')
         const record = {
+          ...props.formData,
           id: Date.now(),
           recorderName: name,
-          targetPriority: props.targetPriority || 'unassigned',
+          targetPriority: props.targetPriority || props.formData?.targetPriority || 'unassigned',
           savedAt: new Date().toISOString(),
           summary: {
             recommendations: recommendations.value.slice(0, 5),
@@ -453,54 +447,35 @@ export default {
 
     const buildExportData = () => {
       const date = new Date().toISOString().split('T')[0]
-<<<<<<< Updated upstream
       
-      return {
-        targetInfo: {
-          id: `TGT-${date}-${Math.floor(Math.random() * 1000)}`,
-          name: props.formData?.selectedTargetSource || 'ไม่ระบุ',
-          type: props.formData?.targetType || 'ไม่ระบุ',
-          structure: props.formData?.structureType || 'ไม่ระบุ',
-          strength: props.formData?.strengthLevel || 'ไม่ระบุ',
-          area: props.formData?.desiredEffect || 'ไม่ระบุ',
-          desiredResult: props.formData?.desiredEffect || 'ไม่ระบุ',
-          weapon: recommendations.value[0]?.item || 'ไม่ระบุ',
-          details: props.formData?.targetDetails || 'ไม่ระบุ',
-          imageName: props.formData?.imageName || 'ไม่ระบุ',
-          imagePreview: props.formData?.imagePreview || '',
-          latitude: props.formData?.latitude || 'ไม่ระบุ',
-          longitude: props.formData?.longitude || 'ไม่ระบุ'
-        },
-        metrics: {
-          confidence: 85,
-          pk: (props.formData?.pk || 0.76).toFixed(2),
-          cep: props.formData?.cep || 10,
-          recommendation: '2,000'
-        },
-        recommendations: recommendations.value,
-        analysisText: aiAnalysisText.value,
-        priority: props.targetPriority || 'ทั่วไป',
-=======
       return {
         targetInfo: {
           id: props.formData?.tgt || `TGT-${date}-${Math.floor(Math.random() * 1000)}`,
           name: props.formData?.targetName || props.formData?.selectedTargetSource || 'ไม่ระบุ',
           type: props.formData?.targetType || 'ไม่ระบุ',
           structure: props.formData?.structureType || 'ไม่ระบุ',
+          targetImportance: props.formData?.targetImportance || '',
           strength: props.formData?.strengthLevel || 'ไม่ระบุ',
-          area: props.formData?.selectedTargetSource || '',
-          details: props.formData?.targetDetails || 'ไม่ระบุ',
+          area: props.formData?.selectedTargetSource || 'ไม่ระบุ',
           desiredResult: props.formData?.desiredEffect || 'ไม่ระบุ',
-          imageName: props.formData?.imageName || '',
+          heightMslFt: props.formData?.heightMslFt ?? '',
+          weaponUsed: props.formData?.weaponUsed || '',
+          details: props.formData?.targetDetails || 'ไม่ระบุ',
+          imageName: props.formData?.imageName || 'ไม่ระบุ',
           imagePreview: props.formData?.imagePreview || '',
-          latitude: props.formData?.latitude,
-          longitude: props.formData?.longitude
+          coordinates: props.formData?.dmpiCoordinates || '',
+          latitude: props.formData?.latitude || 'ไม่ระบุ',
+          longitude: props.formData?.longitude || 'ไม่ระบุ'
         },
-        metrics: { confidence: 85, pk: props.formData?.pk, cep: props.formData?.cep },
+        metrics: {
+          confidence: 85,
+          pk: (props.formData?.pk || 0.76).toFixed(2),
+          cep: props.formData?.cep ?? 10,
+          recommendation: '2,000'
+        },
         recommendations: recommendations.value,
         analysisText: aiAnalysisText.value,
         priority: props.targetPriority || props.formData?.targetPriority || 'ทั่วไป',
->>>>>>> Stashed changes
         generatedDate: new Date().toLocaleString('th-TH')
       }
     }
@@ -508,7 +483,6 @@ export default {
     const exportData = async (format) => {
       showExportMenu.value = false
       const date = new Date().toISOString().split('T')[0]
-<<<<<<< Updated upstream
       const exportData = buildExportData()
 
       try {
@@ -528,16 +502,6 @@ export default {
       } catch (error) {
         console.error('Export Error:', error)
         alert(`เกิดข้อผิดพลาดในการส่งออก: ${error.message}`)
-=======
-      const data = buildExportData()
-      try {
-        if (format === 'word') await exportService.exportToWord(data, `weaponeering_summary_${date}.docx`)
-        else if (format === 'pdf') await exportService.exportToPDF(data, `weaponeering_summary_${date}.pdf`)
-        else return
-      } catch (error) {
-        console.error('Export error:', error)
-        alert(`ไม่สามารถส่งออกไฟล์ได้: ${error.message}`)
->>>>>>> Stashed changes
       }
     }
 

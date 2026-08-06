@@ -1,103 +1,74 @@
 # Weaponeering Analysis System UI
 
-A comprehensive Vue.js web application for weaponeering analysis with interactive mapping, AI analysis module, and data management capabilities.
+Vue 3 application for target analysis, Cesium map visualization, AI-assisted recommendations, report management, and document export.
 
 ## Technology Stack
 
-- **Frontend Framework**: Vue.js 3 (Vite)
-- **CSS Framework**: Bootstrap 5
-- **UI Icons**: Bootstrap Icons
-- **Routing**: Vue Router 4
-- **HTTP Client**: Axios (ready to use)
-- **Maps**: Leaflet-compatible (with placeholder implementation)
-- **Data**: Mock API with realistic sample data
+- Vue 3 with Vite
+- Bootstrap 5 and Bootstrap Icons
+- Vue Router 4
+- Cesium
+- Axios
+- `docx`, jsPDF, and html2canvas for document export
+- Local storage and mock data for the current prototype
 
-## Project Features
+## Main Features
 
-### Left Sidebar - Target Analysis Form
-1. **Target Source Selection** - Checkbox selection for:
-   - เป้าหมายร่วม
-   - เป้าหมาย ทอ.
-   - เป้าหมาย กกล.สุรนารี
-   - เป้าหมายทางลึก
-   - อื่นๆ
+### Target Analysis
 
-2. **Target Type** - Dropdown menu with 10 target types
-3. **Structure Type** - Dropdown for 6 structure types
-4. **Strength Level** - Dropdown for 3 strength levels
-5. **Coordinates** - Latitude/Longitude inputs
-6. **Image Upload** - File upload for target images
-7. **Target Details** - Rich text description area
-8. **PK Value** - Probability of Kill (0-1)
-9. **CEP Value** - Circular Error Probable in meters
-10. **AI Analysis** - Launch AI analysis module
-11. **Save Data** - Save form data
+1. เลือกแหล่งที่มาและระดับความสำคัญของเป้าหมาย
+2. เลือกประเภทเป้าหมาย ลักษณะสิ่งก่อสร้าง และระดับความแข็งแรง
+3. กรอกพิกัด Latitude/Longitude
+4. อัปโหลดรูปภาพเป้าหมายและกรอกรายละเอียด
+5. กรอกค่า Pk และ CEP โดยการส่งออก CEP จะไม่ต่อท้ายหน่วย `m`
+6. วิเคราะห์ข้อมูลและแสดงคำแนะนำ
+7. บันทึกข้อมูลในเครื่อง
 
-### Center - Interactive Map
-- Geographic visualization with buffer zones
-- Concentric circles showing threat radius (0-100m, 100-200m, 200-300m, 300m+)
-- Current coordinates display
-- Color-coded zones
+### Map
 
-### Right Panel - Results & Analysis
-- **Top 5 Recommendations** - Table showing recommended targets
-- **AI Analysis Results** - Detailed analysis output
-- **Chatbot** - Interactive AI Assistant
-- **Simulator** - Embedded video player
-- **Export Functions** - Save data as PDF, Word, and Excel
+- Cesium geographic visualization
+- แสดงตำแหน่งเป้าหมายและเขตผลกระทบ
+- อัปเดตตามพิกัดจากแบบฟอร์ม
 
-### Header Navigation
-- Logo and system title
-- Menu links (Analysis, Reports)
-- Current date/time display (real-time)
-- User info (Admin01)
-- Logout functionality
-- Data refresh button
+### Results and Export
 
-### Reports Page
-- Historical data list with statistics
-- Export functionality
-- Delete operations
+- แสดงคำแนะนำ ผลการวิเคราะห์ และ AI Assistant
+- ส่งออกเฉพาะ PDF และ Word
+- เอกสาร A4 แนวนอน พร้อมรูปภาพอยู่เหนือตารางสรุป
+- Word ใช้ฟอนต์ TH Sarabun New ขนาด 16 pt
 
-## Installation
+### Reports
+
+- รายการและสถิติข้อมูลเป้าหมาย
+- Edit Data สำหรับแก้ไขข้อมูลเป้าหมาย PRI พิกัด ความสูง ระดับความแข็งแรง ผลกระทบ และอาวุธที่ใช้
+- ส่งออก PDF/Word และลบรายการ
+
+## Commands
 
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
-
-# Build for production
 npm run build
-
-# Preview production build
 npm run preview
 ```
 
-## Development Server
-
-```bash
-npm run dev
-```
-
-Runs on `http://localhost:5173`
+Development server: `http://localhost:5173`
 
 ## Project Structure
 
-```
+```text
 src/
-├── components/       # Reusable Vue components
-├── views/           # Page components
-├── services/        # Mock API and services
-├── router/          # Vue Router config
-├── App.vue          # Root component
-└── main.js          # Entry point
+|-- components/       # Reusable Vue components
+|-- views/            # Page components
+|-- services/         # Mock API and export services
+|-- router/           # Vue Router configuration
+|-- App.vue           # Root component
+`-- main.js           # Entry point
 ```
 
 ## Browser Support
 
-- Chrome, Firefox, Safari, Edge (latest versions)
+Latest Chrome, Firefox, Safari, and Edge.
 
 ## License
 

@@ -30,11 +30,7 @@
           :key="`right-${rightRefreshKey}`"
           :collapsed="rightPanelCollapsed"
           :target-priority="currentTargetPriority"
-<<<<<<< Updated upstream
           :form-data="currentFormData"
-=======
-          :form-data="currentAnalysisData"
->>>>>>> Stashed changes
           @toggle-panel="toggleRightPanel"
           @save-data="handleSaveData"
         />
@@ -69,11 +65,7 @@ export default {
     const sidebarCollapsed = ref(false)
     const rightPanelCollapsed = ref(false)
     const currentTargetPriority = ref('')
-<<<<<<< Updated upstream
     const currentFormData = ref({})
-=======
-    const currentAnalysisData = ref({})
->>>>>>> Stashed changes
     const sidebarRefreshKey = ref(0)
     const mapRefreshKey = ref(0)
     const rightRefreshKey = ref(0)
@@ -90,11 +82,6 @@ export default {
     }
 
     const handleAIAnalysis = (analysisData) => {
-<<<<<<< Updated upstream
-=======
-      console.log('AI Analysis started with data:', analysisData)
-      currentAnalysisData.value = { ...analysisData }
->>>>>>> Stashed changes
       currentLatitude.value = analysisData.latitude || currentLatitude.value
       currentLongitude.value = analysisData.longitude || currentLongitude.value
       currentTargetPriority.value = analysisData.targetPriority || currentTargetPriority.value
@@ -119,11 +106,7 @@ export default {
     const resetTargetData = () => {
       sidebarCollapsed.value = false
       currentTargetPriority.value = ''
-<<<<<<< Updated upstream
       currentFormData.value = {}
-=======
-      currentAnalysisData.value = {}
->>>>>>> Stashed changes
       sidebarRefreshKey.value += 1
       displayResetNotice('ล้างข้อมูลเป้าหมายและกลับสู่ค่าเริ่มต้นแล้ว')
     }
@@ -134,11 +117,7 @@ export default {
       sidebarCollapsed.value = false
       rightPanelCollapsed.value = false
       currentTargetPriority.value = ''
-<<<<<<< Updated upstream
       currentFormData.value = {}
-=======
-      currentAnalysisData.value = {}
->>>>>>> Stashed changes
       sidebarRefreshKey.value += 1
       mapRefreshKey.value += 1
       rightRefreshKey.value += 1
@@ -155,11 +134,7 @@ export default {
       sidebarCollapsed,
       rightPanelCollapsed,
       currentTargetPriority,
-<<<<<<< Updated upstream
       currentFormData,
-=======
-      currentAnalysisData,
->>>>>>> Stashed changes
       sidebarRefreshKey,
       mapRefreshKey,
       rightRefreshKey,

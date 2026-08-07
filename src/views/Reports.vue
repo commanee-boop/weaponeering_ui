@@ -211,7 +211,7 @@
                         <td class="target-cell">
                           <div class="target-data">
                             <span class="table-data-icon target-icon"><i :class="targetTypeIcon(report.type)"></i></span>
-                            <div><strong>{{ report.target }}</strong><small>ID: TGT-{{ String(report.id).padStart(3, '0') }}</small></div>
+                            <div><strong>{{ report.target }}</strong><small>ID: {{ report.tgt || '-' }}</small></div>
                           </div>
                         </td>
                         <td><span class="data-with-icon"><span class="table-data-icon source-icon"><i :class="sourceIcon(report.source)"></i></span>{{ report.source }}</span></td>
@@ -361,13 +361,13 @@
             <form class="analysis-result-body edit-report-form" @submit.prevent="saveEditedReport">
               <div class="analysis-target-banner">
                 <span class="analysis-target-icon"><i :class="targetTypeIcon(editForm.type)"></i></span>
-                <div><small>{{ editForm.tgt || `TGT-${String(editingReport.id).padStart(3, '0')}` }}</small><strong>{{ editForm.targetName || editForm.target }}</strong><span>{{ editForm.source }} · {{ editForm.type }}</span></div>
+                <div><small>{{ editForm.tgt || '-' }}</small><strong>{{ editForm.targetName || editForm.target }}</strong><span>{{ editForm.source }} · {{ editForm.type }}</span></div>
                 <span class="importance-badge" :class="editForm.importance"><i :class="importanceIcon(editForm.importance)"></i>{{ importanceLabels[editForm.importance] }}</span>
               </div>
 
               <div class="edit-form-grid">
                 <label class="edit-form-field"><span><i class="bi bi-tag"></i> ชื่อเป้าหมาย</span><input v-model.trim="editForm.targetName" type="text" required /></label>
-                <label class="edit-form-field"><span><i class="bi bi-hash"></i> TGT</span><input v-model.trim="editForm.tgt" type="text" required /></label>
+                <label class="edit-form-field"><span><i class="bi bi-hash"></i> TGT</span><input v-model.trim="editForm.tgt" type="text" readonly /></label>
                 <label class="edit-form-field"><span><i class="bi bi-crosshair"></i> เป้าหมาย</span><input v-model.trim="editForm.target" type="text" required /></label>
                 <label class="edit-form-field"><span><i class="bi bi-123"></i> PRI</span><input v-model.number="editForm.pri" type="number" step="1" required /></label>
                 <label class="edit-form-field"><span><i class="bi bi-broadcast-pin"></i> แหล่งที่มา</span><select v-model="editForm.source" required><option v-for="source in sourceOptions" :key="source" :value="source">{{ source }}</option></select></label>
@@ -404,7 +404,7 @@
             <p>คุณต้องการลบรายการเป้าหมายนี้หรือไม่?</p>
             <div class="delete-target-preview">
               <span><i :class="targetTypeIcon(reportPendingDelete.type)"></i></span>
-              <div><strong>{{ reportPendingDelete.target }}</strong><small>TGT-{{ String(reportPendingDelete.id).padStart(3, '0') }} · {{ reportPendingDelete.type }}</small></div>
+              <div><strong>{{ reportPendingDelete.target }}</strong><small>{{ reportPendingDelete.tgt || '-' }} · {{ reportPendingDelete.type }}</small></div>
             </div>
             <div class="delete-warning-note"><i class="bi bi-exclamation-triangle"></i><span>ข้อมูลที่ลบแล้วจะไม่สามารถเรียกคืนได้</span></div>
             <footer>
@@ -436,6 +436,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import Header from '../components/Header.vue'
 import { exportService } from '../services/exportService'
+import { analysisRecordsAPI } from '../services/analysisRecordsAPI'
 
 export default {
   name: 'ReportsView',
@@ -483,6 +484,9 @@ export default {
       { id: 37, date: '01/06/2569 13:30', dateValue: '2026-06-01', target: 'คลังอาวุธ AK-03', source: 'เป้าหมาย กกล.สุรนารี', type: 'คลังอาวุธ', importance: 'key', status: 'กำลังดำเนินการ' },
       { id: 38, date: '31/05/2569 10:00', dateValue: '2026-05-31', target: 'เรือลาดตระเวน AL-11', source: 'เป้าหมายร่วม', type: 'เรือ', importance: 'general', status: 'สมบูรณ์' }
     ])
+    // The legacy mock rows above are kept temporarily for design reference only.
+    // Runtime report data always comes from PostgreSQL.
+    reports.value = []
 
     const filters = ref({
       source: '',
@@ -537,6 +541,86 @@ export default {
     ]
     const desiredEffectOptions = ['ทำลาย', 'ทำให้หมดขีดความสามารถ', 'ทำลายให้สิ้นสภาพ']
     const strengthOptions = ['เปราะบาง', 'แข็งแรง', 'แข็งแรงพิเศษ']
+
+    const priorityToImportance = {
+      red: 'key',
+      orange: 'medium',
+      green: 'general',
+      unassigned: 'general'
+    }
+
+    const formatRecordDate = (record) => {
+      const savedAt = record.savedAt ? new Date(record.savedAt) : new Date()
+      const time = savedAt.toLocaleTimeString('th-TH', {
+        timeZone: 'Asia/Bangkok',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
+      if (record.dateValue) {
+        const [year, month, day] = record.dateValue.split('-')
+        return `${day}/${month}/${Number(year) + 543} ${time}`
+      }
+      return savedAt.toLocaleString('th-TH', {
+        timeZone: 'Asia/Bangkok',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).replace(',', '')
+    }
+
+    const mapAnalysisRecordToReport = (record) => {
+      const importance = record.importance || priorityToImportance[record.targetPriority] || 'general'
+      const hasCoordinates = record.latitude !== null && record.latitude !== undefined
+        && record.longitude !== null && record.longitude !== undefined
+      const dateValue = record.dateValue || (record.savedAt
+        ? new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).format(new Date(record.savedAt))
+        : '')
+
+      return {
+        ...record,
+        dateValue,
+        date: formatRecordDate({ ...record, dateValue }),
+        target: record.targetName || record.selectedTargetSource || record.tgt || '-',
+        source: record.selectedTargetSource || '-',
+        type: record.targetType || '-',
+        importance,
+        pri: record.targetImportance || importanceLabels[importance],
+        status: record.status || 'สมบูรณ์',
+        targetDescription: record.targetDetails || '',
+        dmpiCoordinates: record.dmpiCoordinates || (hasCoordinates
+          ? `${record.latitude}, ${record.longitude}`
+          : ''),
+        analysis: record.summary?.analysis || record.analysis || ''
+      }
+    }
+
+    const loadReports = async (showError = false) => {
+      try {
+        const records = await analysisRecordsAPI.list()
+        reports.value = records.map(mapAnalysisRecordToReport)
+        return true
+      } catch (error) {
+        console.error('Unable to load reports from PostgreSQL', error)
+        if (showError) alert('ไม่สามารถโหลดข้อมูลจาก PostgreSQL ได้')
+        return false
+      }
+    }
+
+    let stopRealtimeUpdates = null
+    let realtimeReloadTimer = null
+    const scheduleRealtimeReload = () => {
+      if (realtimeReloadTimer) window.clearTimeout(realtimeReloadTimer)
+      realtimeReloadTimer = window.setTimeout(() => {
+        loadReports()
+        realtimeReloadTimer = null
+      }, 100)
+    }
 
     const sourceOptions = computed(() => [...new Set(reports.value.map(report => report.source))])
     const typeOptions = computed(() => [...new Set(reports.value.map(report => report.type))])
@@ -644,7 +728,7 @@ export default {
       }
     })
 
-    const lastUpdated = computed(() => filteredReports.value[0]?.date.split(' ')[0] || '-')
+    const lastUpdated = computed(() => filteredReports.value.at(-1)?.date.split(' ')[0] || '-')
     const hasActiveFilters = computed(() => Object.values(filters.value).some(Boolean))
 
     const clearFilters = () => {
@@ -752,9 +836,11 @@ export default {
       const targetName = report.targetName || report.target || 'ไม่ระบุชื่อเป้าหมาย'
       const desiredEffect = report.desiredEffect || effects[report.type] || 'สิ้นสภาพ (Destroy)'
       const weaponUsed = report.weaponUsed || recommendations[report.type] || 'รอการกำหนดอาวุธ'
+      const stableNumber = [...String(report.id)].reduce((total, character) => total + character.charCodeAt(0), 0)
+      const reportPk = Number(report.pk)
       return {
         ...report,
-        tgt: report.tgt || `TGT-${String(report.id).padStart(3, '0')}`,
+        tgt: report.tgt || '-',
         targetName,
         pri: report.pri ?? importanceLabels[report.importance] ?? '-',
         dmpiCoordinates: report.dmpiCoordinates || '-',
@@ -764,10 +850,10 @@ export default {
         strengthLevel: report.strengthLevel || report.strength || report.targetStrength || 'ไม่ระบุ',
         desiredEffect,
         weaponUsed,
-        confidence: 82 + ((report.id * 3) % 14),
+        confidence: report.confidence ?? (82 + (stableNumber % 14)),
         recommendation: weaponUsed,
-        pk: (0.72 + (report.id % 5) * 0.04).toFixed(2),
-        cep: report.cep ?? (8 + report.id * 2),
+        pk: Number.isFinite(reportPk) ? reportPk.toFixed(2) : (0.72 + (stableNumber % 5) * 0.04).toFixed(2),
+        cep: report.cep ?? (8 + (stableNumber % 20) * 2),
         effect: desiredEffect,
         analysis: report.analysis || `เป้าหมาย ${targetName} ถูกจัดอยู่ในระดับ${importanceLabels[report.importance] || report.targetImportance || 'ไม่ระบุ'} ระบบประเมินลักษณะโครงสร้างและข้อมูลแวดล้อมแล้ว พบว่าสามารถดำเนินการตามคำแนะนำโดยมีโอกาสบรรลุผลในระดับสูง`
       }
@@ -794,7 +880,7 @@ export default {
       editingReport.value = report
       editForm.value = {
         targetName: report.targetName || report.target || '',
-        tgt: report.tgt || `TGT-${String(report.id).padStart(3, '0')}`,
+        tgt: report.tgt || '-',
         target: report.target || '',
         pri: report.pri ?? report.id,
         source: report.source || '',
@@ -822,21 +908,39 @@ export default {
       editForm.value.dmpiCoordinates = String(editForm.value.dmpiCoordinates || '').replace(/[^0-9.,\-\s]/g, '')
     }
 
-    const formatEditedDate = (dateValue, currentDate = '') => {
-      if (!dateValue) return currentDate
-      const [year, month, day] = dateValue.split('-')
-      const time = currentDate.split(' ')[1] || '00:00'
-      return `${day}/${month}/${Number(year) + 543} ${time}`
-    }
-
-    const saveEditedReport = () => {
+    const saveEditedReport = async () => {
       if (!editingReport.value) return
       sanitizeDmpiCoordinates()
       const reportId = editingReport.value.id
-      reports.value = reports.value.map(report => report.id === reportId
-        ? { ...report, ...editForm.value, date: formatEditedDate(editForm.value.dateValue, report.date) }
-        : report)
-      closeEditReport()
+      const coordinateParts = editForm.value.dmpiCoordinates
+        .split(',')
+        .map(value => Number(value.trim()))
+      const hasValidCoordinatePair = coordinateParts.length === 2
+        && coordinateParts.every(Number.isFinite)
+
+      try {
+        const updatedRecord = await analysisRecordsAPI.update(reportId, {
+          ...editForm.value,
+          selectedTargetSource: editForm.value.source,
+          targetType: editForm.value.type,
+          targetDetails: editForm.value.targetDescription,
+          targetPriority: ({ key: 'red', medium: 'orange', general: 'green' })[editForm.value.importance],
+          structureType: editingReport.value.structureType,
+          latitude: hasValidCoordinatePair ? coordinateParts[0] : editingReport.value.latitude,
+          longitude: hasValidCoordinatePair ? coordinateParts[1] : editingReport.value.longitude,
+          pk: editingReport.value.pk,
+          cep: editingReport.value.cep
+        })
+        const updatedReport = mapAnalysisRecordToReport(updatedRecord)
+        reports.value = reports.value.map(report => report.id === reportId ? updatedReport : report)
+        closeEditReport()
+      } catch (error) {
+        console.error('Unable to update report in PostgreSQL', error)
+        const message = error.response?.data?.details?.join('\n')
+          || error.response?.data?.error
+          || 'กรุณาตรวจสอบ API และ PostgreSQL'
+        alert(`ไม่สามารถแก้ไขข้อมูลได้\n${message}`)
+      }
     }
 
     const requestDeleteReport = (report) => {
@@ -851,11 +955,18 @@ export default {
       if (reportPendingDelete.value) showFinalDeleteConfirm.value = true
     }
     const closeFinalDeleteConfirmation = () => { showFinalDeleteConfirm.value = false }
-    const confirmDeleteReport = () => {
+    const confirmDeleteReport = async () => {
       if (!reportPendingDelete.value) return
-      reports.value = reports.value.filter(report => report.id !== reportPendingDelete.value.id)
-      showFinalDeleteConfirm.value = false
-      reportPendingDelete.value = null
+      const reportId = reportPendingDelete.value.id
+      try {
+        await analysisRecordsAPI.remove(reportId)
+        reports.value = reports.value.filter(report => report.id !== reportId)
+        showFinalDeleteConfirm.value = false
+        reportPendingDelete.value = null
+      } catch (error) {
+        console.error('Unable to delete report from PostgreSQL', error)
+        alert('ไม่สามารถลบข้อมูลจาก PostgreSQL ได้')
+      }
     }
 
     const sanitizeFilename = (value) => String(value || 'report')
@@ -869,7 +980,7 @@ export default {
 
       return {
         targetInfo: {
-          id: analysisReport.tgt || `TGT-${String(analysisReport.id).padStart(3, '0')}`,
+          id: analysisReport.tgt || '-',
           name: analysisReport.targetName || analysisReport.target,
           type: analysisReport.type,
           structure: analysisReport.targetDescription || analysisReport.type,
@@ -935,8 +1046,8 @@ export default {
       }
     }
 
-    const refreshData = () => {
-      alert('ข้อมูลได้รับการรีเฟรช')
+    const refreshData = async () => {
+      if (await loadReports(true)) alert('ข้อมูลได้รับการรีเฟรช')
     }
 
     const closeFilterDropdown = () => { openFilterDropdown.value = '' }
@@ -954,10 +1065,14 @@ export default {
       cancelDeleteReport()
     }
     onMounted(() => {
+      loadReports()
+      stopRealtimeUpdates = analysisRecordsAPI.subscribe(scheduleRealtimeReload)
       document.addEventListener('click', closeFilterDropdown)
       window.addEventListener('keydown', handleKeydown)
     })
     onBeforeUnmount(() => {
+      if (realtimeReloadTimer) window.clearTimeout(realtimeReloadTimer)
+      stopRealtimeUpdates?.()
       document.removeEventListener('click', closeFilterDropdown)
       window.removeEventListener('keydown', handleKeydown)
     })

@@ -10,6 +10,14 @@ const publicBase = configuredBase.endsWith('/') ? configuredBase : `${configured
 // https://vite.dev/config/
 export default defineConfig({
   base: publicBase,
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+      },
+    },
+  },
   define: {
     CESIUM_BASE_URL: JSON.stringify(`${publicBase}${cesiumBaseUrl}`),
   },

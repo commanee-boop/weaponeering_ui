@@ -20,7 +20,7 @@ Vue 3 application for target analysis, Cesium map visualization, AI-assisted rec
 2. เลือกประเภทเป้าหมาย ลักษณะสิ่งก่อสร้าง และระดับความแข็งแรง
 3. กรอกพิกัด Latitude/Longitude
 4. อัปโหลดรูปภาพเป้าหมายและกรอกรายละเอียด
-5. กรอกค่า Pk และ CEP โดยการส่งออก CEP จะไม่ต่อท้ายหน่วย `m`
+5. กรอกค่า Pk และ CEP โดยการส่งออก CEP จะไม่ต่อท้ายหน่วย
 6. วิเคราะห์ข้อมูลและแสดงคำแนะนำ
 7. บันทึกข้อมูลในเครื่อง
 
@@ -53,6 +53,49 @@ npm run preview
 ```
 
 Development server: `http://localhost:5173`
+
+## PostgreSQL + PostGIS
+
+คู่มือฉบับเต็ม: [`docs/database-guide.md`](docs/database-guide.md)
+
+The local database runs in Docker and listens only on `127.0.0.1`.
+
+```bash
+docker compose --env-file .env.docker up -d --build
+docker compose --env-file .env.docker ps
+```
+
+PostgreSQL is available to host-side database tools at `127.0.0.1:5433`.
+Adminer is available at `http://127.0.0.1:8081`.
+
+Connection settings are defined directly in `compose.yaml`. This is intended for
+local development only because the database password is stored as plain text. The
+initialization scripts in `database/init/` create the PostGIS extensions and the
+initial `app` schema when the Docker volume is created for the first time.
+
+Connect with `psql` inside the container:
+
+```bash
+docker compose --env-file .env.docker exec postgres psql -U weaponeering_app -d weaponeering_db
+```
+
+Stop the database without deleting its data:
+
+```bash
+docker compose --env-file .env.docker down
+```
+
+The API is available at `http://127.0.0.1:3000/api`. During local development,
+Vite proxies `/api` requests to this service. Start the Vue application after the
+Docker services are healthy:
+
+```bash
+npm run dev
+```
+
+To intentionally recreate an empty local database, remove the Compose volume and
+start the service again. This permanently deletes the local database, so export a
+backup first.
 
 ## Project Structure
 

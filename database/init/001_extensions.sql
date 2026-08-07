@@ -1,0 +1,7 @@
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS citext;
+
+CREATE SCHEMA IF NOT EXISTS app;
+
+COMMENT ON SCHEMA app IS 'Application-owned tables for the Weaponeering UI';

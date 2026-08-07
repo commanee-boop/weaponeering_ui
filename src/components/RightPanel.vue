@@ -287,8 +287,9 @@
           <p>โปรดตรวจสอบข้อมูลก่อนยืนยันการบันทึก</p>
           <div class="confirmation-actions">
             <button type="button" class="confirmation-cancel" @click="cancelSaveConfirmation">ยกเลิก</button>
-            <button type="button" class="confirmation-accept" @click="saveRecordToDatabase">
-              <i class="bi bi-check-lg"></i> ต้องการ
+            <button type="button" class="confirmation-accept" :disabled="isSaving" @click="saveRecordToDatabase">
+              <i :class="isSaving ? 'spinner-border spinner-border-sm' : 'bi bi-check-lg'"></i>
+              {{ isSaving ? 'กำลังบันทึก...' : 'ต้องการ' }}
             </button>
           </div>
         </div>
@@ -301,6 +302,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import mockAPI from '../services/mockAPI'
 import { exportService } from '../services/exportService'
+import { analysisRecordsAPI } from '../services/analysisRecordsAPI'
 import SimulatorDemo from './SimulatorDemo.vue'
 
 export default {
@@ -335,7 +337,7 @@ export default {
     const exportMenuRef = ref(null)
     const recorderName = ref('')
     const savedRecordsCount = ref(0)
-    const DB_KEY = 'weaponeering_records'
+    const isSaving = ref(false)
 
     const selectRecommendation = () => {
       showRecommendationModal.value = true
@@ -376,15 +378,12 @@ export default {
       }
     }
 
-    const loadSavedRecords = () => {
+    const loadSavedRecords = async () => {
       try {
-        const stored = window.localStorage.getItem(DB_KEY)
-        if (stored) {
-          const parsed = JSON.parse(stored)
-          savedRecordsCount.value = Array.isArray(parsed) ? parsed.length : 0
-        }
+        savedRecordsCount.value = await analysisRecordsAPI.count()
       } catch (error) {
-        console.error('Unable to load saved records', error)
+        console.error('Unable to load saved record count from PostgreSQL', error)
+        savedRecordsCount.value = 0
       }
     }
 
@@ -411,37 +410,41 @@ export default {
       showSaveConfirmation.value = false
     }
 
-    const saveRecordToDatabase = () => {
+    const saveRecordToDatabase = async () => {
       const name = recorderName.value.trim()
+      if (isSaving.value) return
       if (!name) {
         alert('กรุณากรอกชื่อผู้บันทึก')
         return
       }
 
       try {
+        isSaving.value = true
         showSaveConfirmation.value = false
-        const existing = JSON.parse(window.localStorage.getItem(DB_KEY) || '[]')
+        const { imagePreview: _imagePreview, ...formDataWithoutImage } = props.formData
         const record = {
-          ...props.formData,
-          id: Date.now(),
+          ...formDataWithoutImage,
           recorderName: name,
           targetPriority: props.targetPriority || props.formData?.targetPriority || 'unassigned',
-          savedAt: new Date().toISOString(),
           summary: {
             recommendations: recommendations.value.slice(0, 5),
             analysis: aiAnalysisText.value
           }
         }
 
-        existing.push(record)
-        window.localStorage.setItem(DB_KEY, JSON.stringify(existing))
-        savedRecordsCount.value = existing.length
-        emit('save-data', record)
+        const savedRecord = await analysisRecordsAPI.create(record)
+        savedRecordsCount.value += 1
+        emit('save-data', savedRecord)
         showSaveModal.value = false
         recorderName.value = ''
       } catch (error) {
-        console.error('Unable to save record', error)
-        alert('ไม่สามารถบันทึกข้อมูลได้ในขณะนี้')
+        console.error('Unable to save record to PostgreSQL', error)
+        const apiMessage = error.response?.data?.details?.join('\n')
+          || error.response?.data?.error
+          || 'กรุณาตรวจสอบว่า API และ PostgreSQL กำลังทำงาน'
+        alert(`ไม่สามารถบันทึกข้อมูลได้ในขณะนี้\n${apiMessage}`)
+      } finally {
+        isSaving.value = false
       }
     }
 
@@ -530,6 +533,7 @@ export default {
       exportMenuRef,
       recorderName,
       savedRecordsCount,
+      isSaving,
       selectRecommendation,
       showAllDetails,
       closeRecommendationModal,

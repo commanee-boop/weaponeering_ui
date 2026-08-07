@@ -1,0 +1,74 @@
+name: weaponeering
+
+services:
+  api:
+    build:
+      context: ./server
+    container_name: weaponeering-api
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: weaponeering_db
+      POSTGRES_USER: weaponeering_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.docker.example to .env.docker and set POSTGRES_PASSWORD}
+      MEDIA_ROOT: /app/server_media
+      TZ: Asia/Bangkok
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - media_data:/app/server_media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    image: postgis/postgis:17-3.5
+    container_name: weaponeering-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: weaponeering_db
+      POSTGRES_USER: weaponeering_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.docker.example to .env.docker and set POSTGRES_PASSWORD}
+      TZ: Asia/Bangkok
+      PGTZ: Asia/Bangkok
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+  adminer:
+    image: adminer:5.5.0
+    container_name: weaponeering-adminer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "127.0.0.1:8081:8080"
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  postgres_data:
+  media_data:

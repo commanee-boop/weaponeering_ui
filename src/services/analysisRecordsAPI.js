@@ -20,7 +20,7 @@ export const analysisRecordsAPI = {
   },
 
   async create(record) {
-    const response = await client.post('/analysis-records', record)
+    const response = await client.post('/analysis-records', record, { timeout: 30_000 })
     return response.data.record
   },
 

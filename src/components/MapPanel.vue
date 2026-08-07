@@ -150,7 +150,7 @@ export default {
     latitude: { type: Number, default: 16.8661 },
     longitude: { type: Number, default: 100.9948 }
   },
-  setup(props) {
+  setup(props, { expose }) {
     const panelElement = ref(null)
     const cesiumContainer = ref(null)
     const isExpanded = ref(false)
@@ -497,6 +497,119 @@ export default {
       viewer.scene.requestRender()
     }
 
+    const captureCoordinateImage = async () => {
+      const readyDeadline = Date.now() + 7000
+      while (isLoading.value && Date.now() < readyDeadline) {
+        await new Promise(resolve => window.setTimeout(resolve, 100))
+      }
+
+      const width = 1200
+      const height = 675
+      const output = document.createElement('canvas')
+      output.width = width
+      output.height = height
+      const context = output.getContext('2d')
+      if (!context) throw new Error('ไม่สามารถสร้างภาพพิกัดได้')
+
+      const background = context.createLinearGradient(0, 0, width, height)
+      background.addColorStop(0, '#071521')
+      background.addColorStop(1, '#102945')
+      context.fillStyle = background
+      context.fillRect(0, 0, width, height)
+
+      if (viewer && !viewer.isDestroyed()) {
+        try {
+          viewer.camera.setView({
+            destination: Cartesian3.fromDegrees(props.longitude, props.latitude, 1800),
+            orientation: { heading: 0, pitch: CesiumMath.toRadians(-68), roll: 0 }
+          })
+          viewer.scene.requestRender()
+          await new Promise(resolve => window.setTimeout(resolve, 250))
+          viewer.scene.render()
+
+          const source = viewer.scene.canvas
+          if (source?.width && source?.height) {
+            const sourceRatio = source.width / source.height
+            const targetRatio = width / height
+            let sourceX = 0
+            let sourceY = 0
+            let sourceWidth = source.width
+            let sourceHeight = source.height
+            if (sourceRatio > targetRatio) {
+              sourceWidth = source.height * targetRatio
+              sourceX = (source.width - sourceWidth) / 2
+            } else {
+              sourceHeight = source.width / targetRatio
+              sourceY = (source.height - sourceHeight) / 2
+            }
+            context.drawImage(source, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height)
+          }
+        } catch (error) {
+          console.warn('Unable to copy Cesium canvas; using coordinate fallback image.', error)
+        }
+      }
+
+      const overlay = context.createLinearGradient(0, height * 0.58, 0, height)
+      overlay.addColorStop(0, 'rgba(2, 8, 15, 0)')
+      overlay.addColorStop(1, 'rgba(2, 8, 15, 0.94)')
+      context.fillStyle = overlay
+      context.fillRect(0, 0, width, height)
+
+      context.strokeStyle = 'rgba(255, 72, 72, 0.9)'
+      context.lineWidth = 3
+      context.beginPath()
+      context.arc(width / 2, height / 2, 24, 0, Math.PI * 2)
+      context.moveTo(width / 2 - 38, height / 2)
+      context.lineTo(width / 2 + 38, height / 2)
+      context.moveTo(width / 2, height / 2 - 38)
+      context.lineTo(width / 2, height / 2 + 38)
+      context.stroke()
+
+      context.fillStyle = '#ffffff'
+      context.font = '700 34px Arial, sans-serif'
+      context.fillText('TARGET COORDINATES', 44, height - 112)
+      context.font = '600 27px monospace'
+      context.fillText(`LAT ${Number(props.latitude).toFixed(5)}`, 44, height - 66)
+      context.fillText(`LON ${Number(props.longitude).toFixed(5)}`, 360, height - 66)
+      context.fillStyle = '#9ec9f5'
+      context.font = '500 20px Arial, sans-serif'
+      context.fillText(`${sourceLabel.value} · ${terrainLabel.value}`, 44, height - 28)
+
+      try {
+        return output.toDataURL('image/jpeg', 0.9)
+      } catch (error) {
+        console.warn('Cesium imagery prevents canvas export; using coordinate fallback image.', error)
+        const fallback = document.createElement('canvas')
+        fallback.width = width
+        fallback.height = height
+        const fallbackContext = fallback.getContext('2d')
+        const fallbackBackground = fallbackContext.createLinearGradient(0, 0, width, height)
+        fallbackBackground.addColorStop(0, '#071521')
+        fallbackBackground.addColorStop(1, '#17486f')
+        fallbackContext.fillStyle = fallbackBackground
+        fallbackContext.fillRect(0, 0, width, height)
+        fallbackContext.strokeStyle = 'rgba(255, 72, 72, 0.9)'
+        fallbackContext.lineWidth = 3
+        fallbackContext.beginPath()
+        fallbackContext.arc(width / 2, height / 2, 24, 0, Math.PI * 2)
+        fallbackContext.moveTo(width / 2 - 38, height / 2)
+        fallbackContext.lineTo(width / 2 + 38, height / 2)
+        fallbackContext.moveTo(width / 2, height / 2 - 38)
+        fallbackContext.lineTo(width / 2, height / 2 + 38)
+        fallbackContext.stroke()
+        fallbackContext.fillStyle = '#ffffff'
+        fallbackContext.font = '700 34px Arial, sans-serif'
+        fallbackContext.fillText('TARGET COORDINATES', 44, height - 112)
+        fallbackContext.font = '600 27px monospace'
+        fallbackContext.fillText(`LAT ${Number(props.latitude).toFixed(5)}`, 44, height - 66)
+        fallbackContext.fillText(`LON ${Number(props.longitude).toFixed(5)}`, 360, height - 66)
+        fallbackContext.fillStyle = '#9ec9f5'
+        fallbackContext.font = '500 20px Arial, sans-serif'
+        fallbackContext.fillText('CESIUM MAP · COORDINATE FALLBACK', 44, height - 28)
+        return fallback.toDataURL('image/jpeg', 0.9)
+      }
+    }
+
     const addOptional3DTiles = async () => {
       const tilesUrl = import.meta.env.VITE_CESIUM_3D_TILES_URL
       if (!tilesUrl) return
@@ -530,7 +643,10 @@ export default {
           selectionIndicator: false,
           timeline: false,
           requestRenderMode: true,
-          maximumRenderTimeChange: Infinity
+          maximumRenderTimeChange: Infinity,
+          contextOptions: {
+            webgl: { preserveDrawingBuffer: true }
+          }
         })
 
         viewer.scene.globe.depthTestAgainstTerrain = false
@@ -607,6 +723,8 @@ export default {
       document.body.style.overflow = ''
     })
 
+    expose({ captureCoordinateImage })
+
     return {
       panelElement,
       cesiumContainer,
@@ -628,6 +746,7 @@ export default {
       closeRightMenu,
       handleRightMenuAction,
       showMapInfo,
+      captureCoordinateImage,
       refreshMap,
       zoomIn,
       zoomOut

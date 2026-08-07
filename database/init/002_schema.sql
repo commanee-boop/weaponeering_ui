@@ -72,6 +72,8 @@ CREATE TABLE attachments (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     analysis_record_id uuid NOT NULL
         REFERENCES analysis_records(id) ON DELETE CASCADE,
+    attachment_type text NOT NULL DEFAULT 'target_image'
+        CHECK (attachment_type IN ('target_image', 'coordinate_map')),
     object_key text NOT NULL UNIQUE,
     original_filename text NOT NULL,
     content_type text NOT NULL,
@@ -82,6 +84,8 @@ CREATE TABLE attachments (
 
 CREATE INDEX attachments_analysis_record_id_idx
     ON attachments (analysis_record_id);
+CREATE UNIQUE INDEX attachments_record_type_uidx
+    ON attachments (analysis_record_id, attachment_type);
 
 CREATE TABLE reports (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

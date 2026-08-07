@@ -93,6 +93,14 @@ Docker services are healthy:
 npm run dev
 ```
 
+Images saved from the Analysis page are stored as files in the persistent
+`weaponeering_media_data` Docker volume. PostgreSQL stores their filename,
+content type, size, checksum, and owning analysis record in `app.attachments`.
+Supported image formats are PNG, JPEG, GIF, and BMP, up to 8 MB per image.
+When coordinates are analyzed and saved, the UI also captures a 1200x675 map
+image with the latitude and longitude overlay. Reports display the target photo
+and coordinate map side by side, and include both in PDF/Word exports.
+
 To intentionally recreate an empty local database, remove the Compose volume and
 start the service again. This permanently deletes the local database, so export a
 backup first.

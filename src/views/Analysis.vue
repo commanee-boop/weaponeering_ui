@@ -22,7 +22,7 @@
       </div>
       
       <div class="map-col">
-        <MapPanel :key="`map-${mapRefreshKey}`" :latitude="currentLatitude" :longitude="currentLongitude" />
+        <MapPanel ref="mapPanelRef" :key="`map-${mapRefreshKey}`" :latitude="currentLatitude" :longitude="currentLongitude" />
       </div>
       
       <div class="right-col">
@@ -31,6 +31,7 @@
           :collapsed="rightPanelCollapsed"
           :target-priority="currentTargetPriority"
           :form-data="currentFormData"
+          :capture-coordinate-image="captureCoordinateImage"
           @toggle-panel="toggleRightPanel"
           @save-data="handleSaveData"
         />
@@ -66,6 +67,7 @@ export default {
     const rightPanelCollapsed = ref(false)
     const currentTargetPriority = ref('')
     const currentFormData = ref({})
+    const mapPanelRef = ref(null)
     const sidebarRefreshKey = ref(0)
     const mapRefreshKey = ref(0)
     const rightRefreshKey = ref(0)
@@ -92,6 +94,13 @@ export default {
     const handleSaveData = (formData) => {
       currentFormData.value = formData || {}
       displayResetNotice('บันทึกข้อมูลในเครื่องแล้ว')
+    }
+
+    const captureCoordinateImage = async () => {
+      if (!mapPanelRef.value?.captureCoordinateImage) {
+        throw new Error('แผนที่ยังไม่พร้อมสำหรับบันทึกภาพพิกัด')
+      }
+      return mapPanelRef.value.captureCoordinateImage()
     }
 
     const displayResetNotice = message => {
@@ -135,6 +144,7 @@ export default {
       rightPanelCollapsed,
       currentTargetPriority,
       currentFormData,
+      mapPanelRef,
       sidebarRefreshKey,
       mapRefreshKey,
       rightRefreshKey,
@@ -144,6 +154,7 @@ export default {
       toggleRightPanel,
       handleAIAnalysis,
       handleSaveData,
+      captureCoordinateImage,
       resetTargetData,
       refreshData
     }

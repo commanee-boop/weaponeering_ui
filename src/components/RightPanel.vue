@@ -320,6 +320,10 @@ export default {
     formData: {
       type: Object,
       default: () => ({})
+    },
+    captureCoordinateImage: {
+      type: Function,
+      default: null
     }
   },
   emits: ['save-data', 'toggle-panel'],
@@ -421,9 +425,18 @@ export default {
       try {
         isSaving.value = true
         showSaveConfirmation.value = false
-        const { imagePreview: _imagePreview, ...formDataWithoutImage } = props.formData
+        const latitude = Number(props.formData?.latitude)
+        const longitude = Number(props.formData?.longitude)
+        const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude)
+        const coordinateImagePreview = hasCoordinates && props.captureCoordinateImage
+          ? await props.captureCoordinateImage()
+          : ''
         const record = {
-          ...formDataWithoutImage,
+          ...props.formData,
+          coordinateImagePreview,
+          coordinateImageName: coordinateImagePreview
+            ? `coordinates_${latitude.toFixed(5)}_${longitude.toFixed(5)}.jpg`
+            : '',
           recorderName: name,
           targetPriority: props.targetPriority || props.formData?.targetPriority || 'unassigned',
           summary: {
@@ -448,7 +461,7 @@ export default {
       }
     }
 
-    const buildExportData = () => {
+    const buildExportData = (coordinateImagePreview = '') => {
       const date = new Date().toISOString().split('T')[0]
       
       return {
@@ -466,6 +479,8 @@ export default {
           details: props.formData?.targetDetails || 'ไม่ระบุ',
           imageName: props.formData?.imageName || 'ไม่ระบุ',
           imagePreview: props.formData?.imagePreview || '',
+          coordinateImageName: coordinateImagePreview ? 'coordinate_map.jpg' : 'ไม่ระบุ',
+          coordinateImagePreview,
           coordinates: props.formData?.dmpiCoordinates || '',
           latitude: props.formData?.latitude || 'ไม่ระบุ',
           longitude: props.formData?.longitude || 'ไม่ระบุ'
@@ -486,17 +501,20 @@ export default {
     const exportData = async (format) => {
       showExportMenu.value = false
       const date = new Date().toISOString().split('T')[0]
-      const exportData = buildExportData()
 
       try {
+        const coordinateImagePreview = props.captureCoordinateImage
+          ? await props.captureCoordinateImage()
+          : ''
+        const reportData = buildExportData(coordinateImagePreview)
         if (format === 'pdf') {
-          await exportService.exportToPDF(exportData, `weaponeering_analysis_${date}.pdf`)
+          await exportService.exportToPDF(reportData, `weaponeering_analysis_${date}.pdf`)
           alert('ส่งออก PDF สำเร็จ')
           return
         }
 
         if (format === 'word') {
-          await exportService.exportToWord(exportData, `weaponeering_analysis_${date}.docx`)
+          await exportService.exportToWord(reportData, `weaponeering_analysis_${date}.docx`)
           alert('ส่งออก Word สำเร็จ')
           return
         }

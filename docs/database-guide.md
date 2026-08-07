@@ -18,10 +18,13 @@
 | Volume | Mount point | หน้าที่ |
 | --- | --- | --- |
 | `postgres_data` | `/var/lib/postgresql/data` | เก็บข้อมูล PostgreSQL |
-| `media_data` | `/app/server_media` | เตรียมพื้นที่ถาวรสำหรับไฟล์รูปและ media |
+| `media_data` | `/app/server_media` | เก็บไฟล์รูปจากหน้าวิเคราะห์แบบถาวร |
 
-ในเวอร์ชันปัจจุบัน API ยังไม่ได้เขียนไฟล์ลง media volume โดยตรง รูป Base64 จะถูก
-ตัดออกก่อนบันทึก analysis record จนกว่าจะเพิ่ม upload endpoint
+เมื่อบันทึกหน้าวิเคราะห์ ระบบจะเก็บรูปเป้าหมายและสร้างภาพแผนที่ 1200×675 จาก
+พิกัดที่กรอก พร้อมฝัง LAT/LON ลงบนภาพ API จะแปลงรูปทั้งสองเป็นไฟล์ใน media
+volume และเก็บ metadata ใน `app.attachments` ได้แก่ประเภท ชื่อเดิม ชนิดไฟล์
+ขนาด checksum และ record เจ้าของ รองรับ PNG, JPEG, GIF และ BMP ขนาดไม่เกิน
+8 MB ต่อรูป
 
 หน้า Vue ไม่เชื่อม PostgreSQL โดยตรง แต่ส่งข้อมูลผ่าน API:
 
@@ -29,8 +32,7 @@
 Vue → /api → Node API → PostgreSQL/PostGIS
 ```
 
-ชื่อฐานข้อมูลและชื่อผู้ใช้กำหนดใน `compose.yaml` ส่วนรหัสผ่านอ่านจาก `.env.docker`
-ซึ่งถูกเพิ่มใน `.gitignore` และไม่ควรนำขึ้น Git
+ชื่อฐานข้อมูลและชื่อผู้ใช้กำหนดใน `compose.yaml`
 
 ## 1. เปิดระบบ
 
@@ -150,26 +152,11 @@ docker compose --env-file .env.docker exec postgres psql -U weaponeering_app -d 
 | --- | ---: | --- | --- |
 | `app.analysis_records` | 23 | `id` | ข้อมูลที่บันทึกจากหน้าวิเคราะห์ |
 | `app.app_users` | 7 | `id` | ผู้ใช้งานและบทบาท `viewer`, `analyst`, `admin` |
-| `app.attachments` | 8 | `id` | metadata ของรูปหรือไฟล์แนบ |
+| `app.attachments` | 9 | `id` | metadata ของรูปเป้าหมายและภาพพิกัด |
 | `app.audit_logs` | 8 | `id` | ประวัติ insert, update และ delete |
 | `app.reports` | 6 | `id` | metadata ของ PDF หรือ DOCX ที่สร้างแล้ว |
 
-คอลัมน์ `location` ใน `analysis_records` เป็น `geography(Point, 4326)` ที่สร้าง
-อัตโนมัติจาก `longitude` และ `latitude` ไม่ต้องกำหนดค่า `location` ด้วยตนเอง
 
-คอลัมน์ `record_code` สร้างจาก PostgreSQL sequence อัตโนมัติในรูปแบบ
-`TGT - 001`, `TGT - 002`, `TGT - 003`, … และแก้ไขจากหน้า Reports ไม่ได้
-ส่วน Primary Key จริงยังเป็นคอลัมน์ `id` ชนิด UUID การลบรายการจะไม่ย้อนกลับมา
-ใช้หมายเลข TGT เดิม เพื่อลดความสับสนในการอ้างอิงและ audit
-
-รูปภาพ Base64 จากหน้า Vue ยังไม่ถูกบันทึกใน PostgreSQL ปัจจุบันเก็บเฉพาะข้อมูล
-แบบฟอร์มและชื่อไฟล์ การเก็บไฟล์จริงควรใช้ object storage หรือ file service
-
-หน้า Reports โหลดข้อมูลจาก `app.analysis_records` ผ่าน API โดยอัตโนมัติ และการ
-แก้ไขหรือลบจากหน้า Reports จะเปลี่ยนข้อมูลใน PostgreSQL จริง
-
-เมื่อข้อมูลถูกสร้าง แก้ไข หรือลบผ่าน API หน้า Reports ที่เปิดอยู่จะได้รับ SSE
-event และโหลดข้อมูลใหม่อัตโนมัติ จึงไม่ต้องกด Refresh หรือรีเซ็ตหน้า
 
 ## 6. ตรวจข้อมูลที่บันทึกจากหน้าวิเคราะห์
 
@@ -251,6 +238,22 @@ ORDER BY occurred_at DESC
 LIMIT 20;
 ```
 
+ดู metadata ของรูปพร้อมรหัส TGT:
+
+```sql
+SELECT
+    r.record_code,
+    a.attachment_type,
+    a.original_filename,
+    a.content_type,
+    a.size_bytes,
+    a.checksum_sha256,
+    a.created_at
+FROM app.attachments AS a
+JOIN app.analysis_records AS r ON r.id = a.analysis_record_id
+ORDER BY a.created_at DESC;
+```
+
 ## 7. ตัวอย่างการค้นหาเชิงพื้นที่
 
 ค้นหารายการภายในระยะ 5 กิโลเมตรจากจุดตัวอย่าง:
@@ -318,6 +321,18 @@ Content-Type: application/json
 ไม่ต้องส่ง `tgt` เมื่อสร้างรายการ เพราะ PostgreSQL จะกำหนดรหัส TGT ถัดไปให้
 อัตโนมัติ และ API จะไม่อนุญาตให้เปลี่ยนรหัสนี้ภายหลัง
 
+หากมีรูป ให้ส่ง `imagePreview` เป็น image data URL และ `imageName` เป็นชื่อไฟล์
+API จะตรวจชนิดไฟล์ ลายเซ็นของไฟล์ และขนาดก่อนบันทึก
+
+หน้า Analysis จะสร้าง `coordinateImagePreview` และ `coordinateImageName`
+อัตโนมัติจาก Cesium map และพิกัดที่กรอกก่อนเรียก API
+
+เรียกไฟล์รูปที่ API ส่งกลับมาใน `imagePreview`:
+
+```text
+GET /api/media/:objectKey
+```
+
 แก้ไขรายการ:
 
 ```text
@@ -325,11 +340,18 @@ PATCH /api/analysis-records/:id
 Content-Type: application/json
 ```
 
-ลบรายการพร้อมข้อมูล attachments/reports ที่อ้างอิงรายการนั้น:
+เมื่อแก้ Latitude/Longitude จากหน้า Reports ระบบจะสร้างภาพ `coordinate_map`
+จากพิกัดใหม่ แทนที่ metadata ใน `app.attachments` และลบไฟล์ภาพพิกัดเดิมหลัง
+transaction สำเร็จ
+
+ลบรายการพร้อมข้อมูล attachments/reports และไฟล์รูปที่อ้างอิงรายการนั้น:
 
 ```text
 DELETE /api/analysis-records/:id
 ```
+
+หลังลบสำเร็จ API จะจัดหมายเลข `TGT` ของรายการที่เหลือให้ต่อเนื่องภายใน
+transaction เดียวกัน และรายการใหม่จะได้รับหมายเลขถัดจากรายการสุดท้าย
 
 ตัวอย่างทดสอบ count จาก PowerShell:
 
@@ -367,6 +389,26 @@ docker compose --env-file .env.docker cp `
 
 ไฟล์ใน `database/backups/` ถูก Git ignore ควรคัดลอก backup สำคัญไปยังพื้นที่
 สำรองที่เข้ารหัสและควบคุมสิทธิ์อีกแห่งหนึ่ง
+
+### สำรองไฟล์รูปใน media volume
+
+สร้างไฟล์ archive ภายใน API container:
+
+```powershell
+docker compose --env-file .env.docker exec api `
+  tar -czf /tmp/weaponeering_media.tar.gz -C /app/server_media .
+```
+
+คัดลอก archive ออกมายังเครื่อง:
+
+```powershell
+docker compose --env-file .env.docker cp `
+  api:/tmp/weaponeering_media.tar.gz `
+  database/backups/weaponeering_media.tar.gz
+```
+
+ควรสำรองทั้ง PostgreSQL dump และ media archive ในรอบเดียวกัน เพื่อให้ metadata
+ใน `app.attachments` ตรงกับไฟล์รูปจริง
 
 ### ทดสอบ restore โดยไม่เขียนทับฐานข้อมูลหลัก
 

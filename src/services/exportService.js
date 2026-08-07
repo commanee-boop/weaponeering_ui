@@ -27,7 +27,8 @@ const priorityLabel = data => {
   return priorityLabels[value] || value
 }
 
-const hasImagePreview = targetInfo => typeof targetInfo?.imagePreview === 'string' && targetInfo.imagePreview.startsWith('data:image/')
+const isImageDataUrl = value => typeof value === 'string' && value.startsWith('data:image/')
+const hasImagePreview = targetInfo => isImageDataUrl(targetInfo?.imagePreview)
 const hasReportValue = value => value !== undefined && value !== null && String(value).trim() !== ''
 const reportValue = value => hasReportValue(value) ? value : ''
 const withoutMeterUnit = value => String(value ?? '').replace(/\s*m\s*$/i, '').trim()
@@ -54,6 +55,40 @@ const dataUrlToUint8Array = dataUrl => {
     bytes[index] = binary.charCodeAt(index)
   }
   return bytes
+}
+
+const imageUrlToDataUrl = async imageUrl => {
+  if (!imageUrl || String(imageUrl).startsWith('data:image/')) return imageUrl || ''
+  const response = await fetch(imageUrl)
+  if (!response.ok) throw new Error(`ไม่สามารถโหลดรูปภาพสำหรับรายงาน (${response.status})`)
+  const blob = await response.blob()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('ไม่สามารถอ่านรูปภาพสำหรับรายงาน'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+const withEmbeddedImage = async data => {
+  const targetInfo = data?.targetInfo || {}
+  const imagePreview = targetInfo.imagePreview
+  const coordinateImagePreview = targetInfo.coordinateImagePreview
+  const resolvedImagePreview = imagePreview && !isImageDataUrl(imagePreview)
+    ? await imageUrlToDataUrl(imagePreview)
+    : imagePreview
+  const resolvedCoordinateImagePreview = coordinateImagePreview && !isImageDataUrl(coordinateImagePreview)
+    ? await imageUrlToDataUrl(coordinateImagePreview)
+    : coordinateImagePreview
+  if (resolvedImagePreview === imagePreview && resolvedCoordinateImagePreview === coordinateImagePreview) return data
+  return {
+    ...data,
+    targetInfo: {
+      ...targetInfo,
+      imagePreview: resolvedImagePreview,
+      coordinateImagePreview: resolvedCoordinateImagePreview
+    }
+  }
 }
 
 const summaryValues = data => {
@@ -143,6 +178,7 @@ const fitImageWithin = (dimensions, maxWidth, maxHeight) => {
 const createPdfReportHtml = data => {
   const targetInfo = data.targetInfo || {}
   const imagePreview = hasImagePreview(targetInfo) ? targetInfo.imagePreview : ''
+  const coordinateImagePreview = isImageDataUrl(targetInfo.coordinateImagePreview) ? targetInfo.coordinateImagePreview : ''
   const summaryHeaders = ['TGT', 'ชื่อเป้าหมาย', 'PRI', 'พิกัด', 'ความสูง (MSL)', 'รายละเอียดเป้าหมาย', 'ผลลัพธ์ที่ต้องการ', 'อาวุธที่ใช้']
   const summaryData = summaryValues(data)
   const otherRows = additionalRows(data)
@@ -181,10 +217,15 @@ const createPdfReportHtml = data => {
       .pdf-report th, .pdf-report td { border: 1px solid #b8c2d0; padding: 6px 8px; vertical-align: middle; font-size: 17px; }
       .pdf-report th { background: #174ea6; color: #ffffff; font-weight: 700; text-align: left; }
       .pdf-report .additional-table th { width: 250px; }
-      .pdf-report .target-image-frame {
-        width: 960px;
-        height: 387px;
+      .pdf-report .image-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
         margin: 10px auto 0;
+      }
+      .pdf-report .target-image-frame {
+        height: 330px;
+        margin: 0;
         padding: 0;
         border: 1px solid #b8c2d0;
         background: #f8fafc;
@@ -196,7 +237,7 @@ const createPdfReportHtml = data => {
         display: block;
         width: 100%;
         height: 100%;
-        object-fit: fill;
+        object-fit: contain;
         background: #ffffff;
       }
       .pdf-report .image-placeholder {
@@ -220,11 +261,18 @@ const createPdfReportHtml = data => {
       <section class="report-page summary-page">
         <h1>Weaponeering Analysis Summary</h1>
         <div class="meta">วันที่จัดทำ: ${escapeHtml(data.generatedDate || new Date().toLocaleString('th-TH'))}</div>
-        <figure class="target-image-frame">
-          ${imagePreview
-            ? `<img src="${escapeHtml(imagePreview)}" alt="${escapeHtml(targetInfo.imageName || 'Target image')}" />`
-            : '<div class="image-placeholder">ไม่มีรูปภาพเป้าหมาย</div>'}
-        </figure>
+        <div class="image-pair">
+          <figure class="target-image-frame">
+            ${imagePreview
+              ? `<img src="${escapeHtml(imagePreview)}" alt="${escapeHtml(targetInfo.imageName || 'Target image')}" />`
+              : '<div class="image-placeholder">ไม่มีรูปภาพเป้าหมาย</div>'}
+          </figure>
+          <figure class="target-image-frame">
+            ${coordinateImagePreview
+              ? `<img src="${escapeHtml(coordinateImagePreview)}" alt="Coordinate map" />`
+              : '<div class="image-placeholder">ไม่มีภาพพิกัดบนแผนที่</div>'}
+          </figure>
+        </div>
         <table class="summary-table">
           <thead><tr>${summaryHeaderCells}</tr></thead>
           <tbody><tr>${summaryValueCells}</tr></tbody>
@@ -262,6 +310,7 @@ export const exportService = {
    */
   async exportToPDF(data, filename = 'weaponeering_analysis.pdf') {
     try {
+      data = await withEmbeddedImage(data)
       const { jsPDF } = await import('jspdf')
       const { default: html2canvas } = await import('html2canvas')
       const doc = new jsPDF({
@@ -329,6 +378,7 @@ export const exportService = {
    */
   async exportToWord(data, filename = 'weaponeering_analysis.docx') {
     try {
+      data = await withEmbeddedImage(data)
       const {
         Document,
         Packer,
@@ -354,9 +404,10 @@ export const exportService = {
       const wordFontSize = 32
       const tableWidth = 15700
       const imageFrameWidth = 14400
-      const imageFrameHeight = 5800
-      const imageMaxWidth = 960
-      const imageMaxHeight = 387
+      const imageCellWidth = imageFrameWidth / 2
+      const imageFrameHeight = 4700
+      const imageMaxWidth = 450
+      const imageMaxHeight = 300
       const twoColWidths = [3600, 12100]
       const summaryColWidths = [1400, 1900, 1300, 2200, 1800, 2600, 2300, 2200]
       const tableBorders = {
@@ -478,30 +529,30 @@ export const exportService = {
         spacing: { after: 50 }
       }))
 
-      let imageFrameContent
-      if (hasImagePreview(targetInfo)) {
-        imageFrameContent = new Paragraph({
+      const imageFrameContent = (preview, placeholder) => {
+        if (!isImageDataUrl(preview)) {
+          return paragraph(placeholder, {
+            alignment: AlignmentType.CENTER,
+            color: wordMuted,
+            size: wordFontSize
+          })
+        }
+        return new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { before: 0, after: 0 },
           children: [
             new ImageRun({
-              type: imageTypeFromDataUrl(targetInfo.imagePreview),
-              data: dataUrlToUint8Array(targetInfo.imagePreview),
+              type: imageTypeFromDataUrl(preview),
+              data: dataUrlToUint8Array(preview),
               transformation: { width: imageMaxWidth, height: imageMaxHeight }
             })
           ]
-        })
-      } else {
-        imageFrameContent = paragraph('ไม่มีรูปภาพเป้าหมาย', {
-          alignment: AlignmentType.CENTER,
-          color: wordMuted,
-          size: wordFontSize
         })
       }
 
       sections.push(new Table({
         width: { size: imageFrameWidth, type: WidthType.DXA },
-        columnWidths: [imageFrameWidth],
+        columnWidths: [imageCellWidth, imageCellWidth],
         alignment: AlignmentType.CENTER,
         layout: TableLayoutType.FIXED,
         borders: imageFrameBorders,
@@ -510,10 +561,16 @@ export const exportService = {
             height: { value: imageFrameHeight, rule: HeightRule.EXACT },
             children: [
               new TableCell({
-                width: { size: imageFrameWidth, type: WidthType.DXA },
+                width: { size: imageCellWidth, type: WidthType.DXA },
                 verticalAlign: VerticalAlign.CENTER,
                 margins: { top: 0, bottom: 0, left: 0, right: 0 },
-                children: [imageFrameContent]
+                children: [imageFrameContent(targetInfo.imagePreview, 'ไม่มีรูปภาพเป้าหมาย')]
+              }),
+              new TableCell({
+                width: { size: imageCellWidth, type: WidthType.DXA },
+                verticalAlign: VerticalAlign.CENTER,
+                margins: { top: 0, bottom: 0, left: 0, right: 0 },
+                children: [imageFrameContent(targetInfo.coordinateImagePreview, 'ไม่มีภาพพิกัดบนแผนที่')]
               })
             ]
           })

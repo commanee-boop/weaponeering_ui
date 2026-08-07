@@ -249,7 +249,7 @@
           ref="fileInput"
           type="file"
           class="d-none"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/gif,image/bmp"
           @change="handleImageUpload"
         />
       </div>
@@ -472,12 +472,28 @@ export default {
     }
 
     const handleImageUpload = (event) => {
-      const file = event.target.files[0]
+      const file = event.target.files?.[0]
       if (file) {
+        const supportedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/bmp']
+        if (!supportedTypes.includes(file.type)) {
+          alert('รองรับเฉพาะไฟล์ PNG, JPEG, GIF และ BMP')
+          event.target.value = ''
+          return
+        }
+        if (file.size > 8 * 1024 * 1024) {
+          alert('รูปภาพต้องมีขนาดไม่เกิน 8 MB')
+          event.target.value = ''
+          return
+        }
+
         const reader = new FileReader()
         reader.onload = (e) => {
           formData.value.imagePreview = e.target.result
           formData.value.imageName = file.name
+        }
+        reader.onerror = () => {
+          alert('ไม่สามารถอ่านไฟล์รูปภาพได้')
+          event.target.value = ''
         }
         reader.readAsDataURL(file)
       }

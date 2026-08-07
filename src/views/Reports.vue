@@ -297,6 +297,42 @@
                 <span class="importance-badge" :class="selectedReport.importance"><i :class="importanceIcon(selectedReport.importance)"></i>{{ importanceLabels[selectedReport.importance] }}</span>
               </div>
 
+              <section class="analysis-image-section" aria-labelledby="target-image-title">
+                <h4 id="target-image-title"><i class="bi bi-images"></i> ภาพประกอบเป้าหมายและพิกัด</h4>
+                <div class="analysis-image-grid">
+                  <article>
+                    <header><strong>รูปภาพเป้าหมาย</strong><span>{{ selectedReport.imageName || 'ไม่มีไฟล์' }}</span></header>
+                    <div class="analysis-image-frame">
+                      <img
+                        v-if="selectedReport.imagePreview && !reportImageErrors.target"
+                        :src="selectedReport.imagePreview"
+                        :alt="`รูปภาพ ${selectedReport.targetName}`"
+                        @error="handleReportImageError('target')"
+                      />
+                      <div v-else class="analysis-image-placeholder">
+                        <i class="bi bi-image" aria-hidden="true"></i>
+                        <strong>{{ selectedReport.imagePreview ? 'ไม่สามารถโหลดรูปภาพได้' : 'ไม่มีรูปภาพเป้าหมาย' }}</strong>
+                      </div>
+                    </div>
+                  </article>
+                  <article>
+                    <header><strong>ภาพพิกัดบนแผนที่</strong><span>{{ selectedReport.coordinateImageName || selectedReport.dmpiCoordinates }}</span></header>
+                    <div class="analysis-image-frame">
+                      <img
+                        v-if="selectedReport.coordinateImagePreview && !reportImageErrors.coordinate"
+                        :src="selectedReport.coordinateImagePreview"
+                        :alt="`แผนที่พิกัด ${selectedReport.dmpiCoordinates}`"
+                        @error="handleReportImageError('coordinate')"
+                      />
+                      <div v-else class="analysis-image-placeholder">
+                        <i class="bi bi-geo-alt" aria-hidden="true"></i>
+                        <strong>{{ selectedReport.coordinateImagePreview ? 'ไม่สามารถโหลดภาพพิกัดได้' : 'ไม่มีภาพพิกัดสำหรับรายการนี้' }}</strong>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
               <div class="analysis-metric-grid">
                 <article><span class="metric-icon confidence"><i class="bi bi-flag-fill"></i></span><div><small>PRI</small><strong>{{ selectedReport.pri }}</strong></div></article>
                 <article><span class="metric-icon weapon"><i class="bi bi-shield-check"></i></span><div><small>ระดับความแข็งแรง</small><strong>{{ selectedReport.strengthLevel }}</strong></div></article>
@@ -358,7 +394,7 @@
               <button type="button" class="analysis-modal-close" aria-label="ปิด" @click="closeEditReport"><i class="bi bi-x-lg"></i></button>
             </header>
 
-            <form class="analysis-result-body edit-report-form" @submit.prevent="saveEditedReport">
+            <form class="analysis-result-body edit-report-form" @submit.prevent="requestEditConfirmation">
               <div class="analysis-target-banner">
                 <span class="analysis-target-icon"><i :class="targetTypeIcon(editForm.type)"></i></span>
                 <div><small>{{ editForm.tgt || '-' }}</small><strong>{{ editForm.targetName || editForm.target }}</strong><span>{{ editForm.source }} · {{ editForm.type }}</span></div>
@@ -372,16 +408,16 @@
                 <label class="edit-form-field"><span><i class="bi bi-123"></i> PRI</span><input v-model.number="editForm.pri" type="number" step="1" required /></label>
                 <label class="edit-form-field"><span><i class="bi bi-broadcast-pin"></i> แหล่งที่มา</span><select v-model="editForm.source" required><option v-for="source in sourceOptions" :key="source" :value="source">{{ source }}</option></select></label>
                 <label class="edit-form-field"><span><i class="bi bi-buildings"></i> ประเภท</span><select v-model="editForm.type" required><option v-for="type in typeOptions" :key="type" :value="type">{{ type }}</option></select></label>
-                <label class="edit-form-field"><span><i class="bi bi-card-text"></i> ลักษณะของเป้าหมาย</span><input v-model.trim="editForm.targetDescription" type="text" required /></label>
+                <label class="edit-form-field span-two"><span><i class="bi bi-card-text"></i> ลักษณะของเป้าหมาย</span><input v-model.trim="editForm.targetDescription" type="text" required /></label>
                 <label class="edit-form-field"><span><i class="bi bi-exclamation-diamond"></i> ความสำคัญเป้าหมาย</span><input v-model.trim="editForm.targetImportance" type="text" placeholder="กรอกความสำคัญเป้าหมาย" /></label>
                 <label class="edit-form-field"><span><i class="bi bi-shield-check"></i> ระดับความแข็งแรง</span><select v-model="editForm.strengthLevel"><option value="">-- เลือกระดับความแข็งแรง --</option><option v-for="strength in strengthOptions" :key="strength" :value="strength">{{ strength }}</option></select></label>
                 <label class="edit-form-field"><span><i class="bi bi-rulers"></i> ความสูง (MSL)(ft.)</span><input v-model.number="editForm.heightMslFt" type="number" step="1" /></label>
-                <label class="edit-form-field"><span><i class="bi bi-geo-alt"></i> DMPI: พิกัด (Lat/Long)</span><input v-model.trim="editForm.dmpiCoordinates" type="text" inputmode="decimal" pattern="[0-9.,\\-\\s]*" placeholder="14.123456, 101.123456" @input="sanitizeDmpiCoordinates" /></label>
+                <label class="edit-form-field"><span><i class="bi bi-geo-alt"></i> DMPI: พิกัด (Lat/Long)</span><input v-model.trim="editForm.dmpiCoordinates" type="text" inputmode="decimal" placeholder="14.123456, 101.123456" @input="sanitizeDmpiCoordinates" /></label>
                 <label class="edit-form-field"><span><i class="bi bi-bullseye"></i> ผลกระทบที่ต้องการ</span><select v-model="editForm.desiredEffect"><option v-for="effect in desiredEffectOptions" :key="effect" :value="effect">{{ effect }}</option></select></label>
                 <label class="edit-form-field"><span><i class="bi bi-flag"></i> ความสำคัญ</span><select v-model="editForm.importance" required><option v-for="level in importanceOptions" :key="level.value" :value="level.value">{{ level.label }}</option></select></label>
                 <label class="edit-form-field"><span><i class="bi bi-crosshair2"></i> อาวุธที่ใช้</span><input v-model.trim="editForm.weaponUsed" type="text" placeholder="กรอกอาวุธที่ใช้" /></label>
                 <label class="edit-form-field"><span><i class="bi bi-calendar3"></i> วันที่</span><input v-model="editForm.dateValue" type="date" required /></label>
-                <label class="edit-form-field full-width"><span><i class="bi bi-check-circle"></i> สถานะ</span><input v-model.trim="editForm.status" type="text" required /></label>
+                <label class="edit-form-field span-two"><span><i class="bi bi-check-circle"></i> สถานะ</span><input v-model.trim="editForm.status" type="text" required /></label>
               </div>
 
               <footer class="analysis-result-footer edit-report-footer">
@@ -393,6 +429,33 @@
               </footer>
             </form>
           </section>
+        </div>
+
+        <div v-if="showEditConfirmation" class="delete-modal-backdrop edit-confirm-backdrop" @click.self="closeEditConfirmation">
+          <section class="delete-confirm-modal edit-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="edit-confirm-title">
+            <button type="button" class="delete-modal-close" aria-label="ปิด" :disabled="isSavingEdit" @click="closeEditConfirmation"><i class="bi bi-x-lg"></i></button>
+            <span class="delete-warning-icon edit-confirm-icon"><i class="bi bi-pencil-square"></i></span>
+            <small>CONFIRM CHANGES</small>
+            <h3 id="edit-confirm-title">ยืนยันการแก้ไขข้อมูล</h3>
+            <p>ต้องการแก้ไขข้อมูลรายการนี้ใช่หรือไม่?</p>
+            <div class="delete-target-preview edit-target-preview">
+              <span><i :class="targetTypeIcon(editForm.type)"></i></span>
+              <div><strong>{{ editForm.targetName || editForm.target || '-' }}</strong><small>{{ editForm.tgt || '-' }} · {{ editForm.type || '-' }}</small></div>
+            </div>
+            <div class="delete-warning-note edit-warning-note"><i class="bi bi-exclamation-triangle"></i><span>ข้อมูลเดิมจะถูกแทนที่ด้วยข้อมูลที่แก้ไข</span></div>
+            <footer>
+              <button type="button" class="delete-cancel-button" :disabled="isSavingEdit" @click="closeEditConfirmation"><i class="bi bi-arrow-left"></i> กลับไปตรวจสอบ</button>
+              <button type="button" class="edit-confirm-button" :disabled="isSavingEdit" @click="saveEditedReport">
+                <span v-if="isSavingEdit" class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                <i v-else class="bi bi-check-lg"></i>
+                {{ isSavingEdit ? 'กำลังบันทึก...' : 'ยืนยันการแก้ไข' }}
+              </button>
+            </footer>
+          </section>
+        </div>
+
+        <div v-if="showEditConfirmation && editCoordinatesChanged" class="edit-coordinate-capture" aria-hidden="true">
+          <MapPanel ref="editMapPanelRef" :latitude="editCoordinateLatitude" :longitude="editCoordinateLongitude" />
         </div>
 
         <div v-if="reportPendingDelete" class="delete-modal-backdrop" @click.self="cancelDeleteReport">
@@ -433,15 +496,17 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import Header from '../components/Header.vue'
+import MapPanel from '../components/MapPanel.vue'
 import { exportService } from '../services/exportService'
 import { analysisRecordsAPI } from '../services/analysisRecordsAPI'
 
 export default {
   name: 'ReportsView',
   components: {
-    Header
+    Header,
+    MapPanel
   },
   setup() {
     const reports = ref([
@@ -500,6 +565,7 @@ export default {
     const importFileInput = ref(null)
     const selectedImportFormat = ref('')
     const selectedReport = ref(null)
+    const reportImageErrors = ref({ target: false, coordinate: false })
     const editingReport = ref(null)
     const editForm = ref({
       targetName: '',
@@ -518,6 +584,23 @@ export default {
       weaponUsed: '',
       dateValue: '',
       status: ''
+    })
+    const showEditConfirmation = ref(false)
+    const isSavingEdit = ref(false)
+    const editMapPanelRef = ref(null)
+    const editCoordinateValues = computed(() => editForm.value.dmpiCoordinates
+      .split(',')
+      .map(value => Number(value.trim())))
+    const editCoordinateLatitude = computed(() => editCoordinateValues.value[0] || 0)
+    const editCoordinateLongitude = computed(() => editCoordinateValues.value[1] || 0)
+    const editCoordinatesChanged = computed(() => {
+      if (!editingReport.value || editCoordinateValues.value.length !== 2 || !editCoordinateValues.value.every(Number.isFinite)) return false
+      const originalLatitude = editingReport.value.latitude
+      const originalLongitude = editingReport.value.longitude
+      if (originalLatitude === null || originalLatitude === undefined || originalLatitude === ''
+        || originalLongitude === null || originalLongitude === undefined || originalLongitude === '') return true
+      return editCoordinateLatitude.value !== Number(originalLatitude)
+        || editCoordinateLongitude.value !== Number(originalLongitude)
     })
     const reportPendingDelete = ref(null)
     const showFinalDeleteConfirm = ref(false)
@@ -860,10 +943,18 @@ export default {
     }
 
     const openAnalysisResult = (report) => {
+      reportImageErrors.value = { target: false, coordinate: false }
       selectedReport.value = buildAnalysisReport(report)
     }
 
-    const closeAnalysisResult = () => { selectedReport.value = null }
+    const closeAnalysisResult = () => {
+      selectedReport.value = null
+      reportImageErrors.value = { target: false, coordinate: false }
+    }
+
+    const handleReportImageError = type => {
+      reportImageErrors.value = { ...reportImageErrors.value, [type]: true }
+    }
 
     const viewReport = (id) => {
       const report = reports.value.find(r => r.id === id)
@@ -900,12 +991,38 @@ export default {
     }
 
     const closeEditReport = () => {
+      if (isSavingEdit.value) return
+      showEditConfirmation.value = false
       editingReport.value = null
       editForm.value = emptyEditForm()
     }
 
     const sanitizeDmpiCoordinates = () => {
       editForm.value.dmpiCoordinates = String(editForm.value.dmpiCoordinates || '').replace(/[^0-9.,\-\s]/g, '')
+    }
+
+    const requestEditConfirmation = () => {
+      if (!editingReport.value) return
+      sanitizeDmpiCoordinates()
+      const coordinates = editForm.value.dmpiCoordinates
+        .split(',')
+        .map(value => Number(value.trim()))
+      const hasCoordinateInput = editForm.value.dmpiCoordinates.trim() !== ''
+      const hasValidCoordinatePair = coordinates.length === 2
+        && coordinates.every(Number.isFinite)
+        && coordinates[0] >= -90
+        && coordinates[0] <= 90
+        && coordinates[1] >= -180
+        && coordinates[1] <= 180
+      if (hasCoordinateInput && !hasValidCoordinatePair) {
+        alert('กรุณากรอกพิกัดในรูปแบบ Latitude, Longitude\nLatitude ต้องอยู่ระหว่าง -90 ถึง 90\nLongitude ต้องอยู่ระหว่าง -180 ถึง 180')
+        return
+      }
+      showEditConfirmation.value = true
+    }
+
+    const closeEditConfirmation = () => {
+      if (!isSavingEdit.value) showEditConfirmation.value = false
     }
 
     const saveEditedReport = async () => {
@@ -919,6 +1036,15 @@ export default {
         && coordinateParts.every(Number.isFinite)
 
       try {
+        isSavingEdit.value = true
+        let coordinateImagePreview = ''
+        if (editCoordinatesChanged.value) {
+          await nextTick()
+          if (!editMapPanelRef.value?.captureCoordinateImage) {
+            throw new Error('แผนที่ยังไม่พร้อมสำหรับสร้างภาพพิกัดใหม่')
+          }
+          coordinateImagePreview = await editMapPanelRef.value.captureCoordinateImage()
+        }
         const updatedRecord = await analysisRecordsAPI.update(reportId, {
           ...editForm.value,
           selectedTargetSource: editForm.value.source,
@@ -929,17 +1055,25 @@ export default {
           latitude: hasValidCoordinatePair ? coordinateParts[0] : editingReport.value.latitude,
           longitude: hasValidCoordinatePair ? coordinateParts[1] : editingReport.value.longitude,
           pk: editingReport.value.pk,
-          cep: editingReport.value.cep
+          cep: editingReport.value.cep,
+          ...(coordinateImagePreview ? {
+            coordinateImagePreview,
+            coordinateImageName: `coordinates_${coordinateParts[0].toFixed(5)}_${coordinateParts[1].toFixed(5)}.jpg`
+          } : {})
         })
         const updatedReport = mapAnalysisRecordToReport(updatedRecord)
         reports.value = reports.value.map(report => report.id === reportId ? updatedReport : report)
-        closeEditReport()
+        showEditConfirmation.value = false
+        editingReport.value = null
+        editForm.value = emptyEditForm()
       } catch (error) {
         console.error('Unable to update report in PostgreSQL', error)
         const message = error.response?.data?.details?.join('\n')
           || error.response?.data?.error
           || 'กรุณาตรวจสอบ API และ PostgreSQL'
         alert(`ไม่สามารถแก้ไขข้อมูลได้\n${message}`)
+      } finally {
+        isSavingEdit.value = false
       }
     }
 
@@ -993,6 +1127,8 @@ export default {
           details: analysisReport.targetDescription || analysisReport.details || analysisReport.analysis || 'N/A',
           imageName: analysisReport.imageName || 'N/A',
           imagePreview: analysisReport.imagePreview || '',
+          coordinateImageName: analysisReport.coordinateImageName || 'N/A',
+          coordinateImagePreview: analysisReport.coordinateImagePreview || '',
           coordinates: analysisReport.dmpiCoordinates || '',
           latitude: analysisReport.latitude || 'N/A',
           longitude: analysisReport.longitude || 'N/A'
@@ -1053,6 +1189,10 @@ export default {
     const closeFilterDropdown = () => { openFilterDropdown.value = '' }
     const handleKeydown = (event) => {
       if (event.key !== 'Escape') return
+      if (showEditConfirmation.value) {
+        closeEditConfirmation()
+        return
+      }
       if (showFinalDeleteConfirm.value) {
         closeFinalDeleteConfirmation()
         return
@@ -1083,8 +1223,15 @@ export default {
       openFilterDropdown,
       importFileInput,
       selectedReport,
+      reportImageErrors,
       editingReport,
       editForm,
+      showEditConfirmation,
+      isSavingEdit,
+      editMapPanelRef,
+      editCoordinateLatitude,
+      editCoordinateLongitude,
+      editCoordinatesChanged,
       reportPendingDelete,
       showFinalDeleteConfirm,
       filteredReports,
@@ -1128,10 +1275,13 @@ export default {
       handleImportFile,
       openAnalysisResult,
       closeAnalysisResult,
+      handleReportImageError,
       viewReport,
       editReport,
       closeEditReport,
       sanitizeDmpiCoordinates,
+      requestEditConfirmation,
+      closeEditConfirmation,
       saveEditedReport,
       requestDeleteReport,
       cancelDeleteReport,
@@ -2678,6 +2828,73 @@ export default {
 .analysis-target-banner strong { color: #fff; font-size: 1rem; }
 .analysis-target-banner > div > span { color: #9fb2c6; font-size: 0.72rem; }
 
+.analysis-image-section {
+  margin-top: 12px;
+  padding: 13px;
+  border: 1px solid #2c4863;
+  border-radius: 12px;
+  background: rgba(8, 22, 35, 0.78);
+}
+
+.analysis-image-section h4 { margin: 0 0 10px; color: #dceaff; font-size: 0.78rem; }
+.analysis-image-section h4 i { margin-right: 6px; color: #6ea8fe; }
+
+.analysis-image-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.analysis-image-grid article { min-width: 0; }
+.analysis-image-grid article > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.analysis-image-grid article > header strong { color: #b9cee1; font-size: 0.68rem; }
+.analysis-image-grid article > header span {
+  overflow: hidden;
+  color: #829bb3;
+  font-size: 0.6rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysis-image-frame {
+  display: grid;
+  aspect-ratio: 16 / 10;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #294a68;
+  border-radius: 10px;
+  background: #050d15;
+}
+
+.analysis-image-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.analysis-image-placeholder {
+  display: flex;
+  max-width: 420px;
+  align-items: center;
+  flex-direction: column;
+  gap: 7px;
+  padding: 24px;
+  color: #7890a7;
+  text-align: center;
+}
+
+.analysis-image-placeholder > i { font-size: 2rem; }
+.analysis-image-placeholder strong { color: #a9bdcf; font-size: 0.76rem; }
+.analysis-image-placeholder small { font-size: 0.64rem; line-height: 1.5; }
+
 .analysis-metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2793,19 +3010,21 @@ export default {
 }
 
 .edit-report-modal {
-  width: min(1080px, 100%);
+  width: min(900px, 100%);
+  max-height: min(92dvh, 700px);
 }
 
 .edit-report-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .edit-form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px 12px;
+  padding: 2px;
 }
 
 .edit-form-field {
@@ -2820,11 +3039,15 @@ export default {
   grid-column: 1 / -1;
 }
 
+.edit-form-field.span-two {
+  grid-column: span 2;
+}
+
 .edit-form-field > span {
   display: inline-flex;
-  min-height: 22px;
+  min-height: 19px;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: #9fb8cf;
   font-size: 0.68rem;
   font-weight: 700;
@@ -2852,7 +3075,11 @@ export default {
 }
 
 .edit-report-footer {
+  position: sticky;
+  bottom: -16px;
+  z-index: 2;
   margin: 2px -18px -16px;
+  box-shadow: 0 -10px 22px rgba(3, 12, 21, 0.2);
 }
 
 .edit-footer-actions {
@@ -2871,6 +3098,38 @@ export default {
   border-color: #71899f;
   background: #263d54;
   color: #ffffff;
+}
+
+.edit-confirm-backdrop {
+  z-index: 1780;
+  background: rgba(2, 8, 15, 0.88);
+}
+
+.delete-confirm-modal.edit-confirm-modal {
+  width: min(430px, 100%);
+  border-color: #435f7b;
+  background: radial-gradient(circle at 50% 0, rgba(13, 110, 253, 0.18), transparent 40%), #0b1724;
+  box-shadow: 0 24px 75px rgba(0, 0, 0, 0.68), 0 0 30px rgba(13, 110, 253, 0.12);
+}
+
+.delete-confirm-modal.edit-confirm-modal > small { color: #6eaff5; }
+.delete-warning-icon.edit-confirm-icon { border-color: rgba(101, 168, 238, 0.58); background: rgba(13, 110, 253, 0.17); color: #75b6ff; box-shadow: 0 0 0 8px rgba(13, 110, 253, 0.05), 0 0 24px rgba(13, 110, 253, 0.2); }
+.edit-target-preview { border-color: #345573; }
+.delete-target-preview.edit-target-preview > span { background: rgba(13, 110, 253, 0.2); color: #7dbbff; }
+.edit-warning-note { color: #d4b66c; }
+.edit-confirm-button { border: 1px solid #3b8de2; background: linear-gradient(135deg, #1677dc, #0b58a8); box-shadow: 0 6px 16px rgba(13, 110, 253, 0.28); color: #fff; }
+.edit-confirm-button:hover:not(:disabled) { background: linear-gradient(135deg, #288aef, #0d67c3); transform: translateY(-1px); }
+.edit-confirm-modal button:disabled { cursor: wait; opacity: 0.68; }
+
+.edit-coordinate-capture {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 900px;
+  height: 560px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .delete-modal-backdrop {
@@ -3088,6 +3347,7 @@ h2 {
   .analysis-result-modal { max-height: 94dvh; }
   .analysis-result-header, .analysis-result-footer { padding: 11px 12px; }
   .analysis-result-body { padding: 12px; }
+  .analysis-image-grid { grid-template-columns: 1fr; }
   .analysis-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analysis-current-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analysis-detail-grid { grid-template-columns: 1fr; }
@@ -3095,7 +3355,7 @@ h2 {
   .analysis-result-footer { align-items: stretch; gap: 9px; flex-direction: column; }
   .analysis-footer-actions { justify-content: flex-end; }
   .edit-form-grid { grid-template-columns: 1fr; }
-  .edit-form-field.full-width { grid-column: auto; }
+  .edit-form-field.full-width, .edit-form-field.span-two { grid-column: auto; }
   .edit-report-footer { align-items: stretch; flex-direction: column; margin: 0 -12px -12px; }
   .edit-footer-actions { justify-content: flex-end; }
 }
@@ -3229,8 +3489,13 @@ h2 {
 :global(body.light-theme) .analysis-metric-grid strong { color: #17324a; }
 :global(body.light-theme) .analysis-target-banner,
 :global(body.light-theme) .analysis-metric-grid article,
+:global(body.light-theme) .analysis-image-section,
 :global(body.light-theme) .analysis-detail-card,
 :global(body.light-theme) .analysis-summary-card { border-color: #c4d3e1; background: #ffffff; }
+:global(body.light-theme) .analysis-image-section h4 { color: #24445f; }
+:global(body.light-theme) .analysis-image-grid article > header strong { color: #405d75; }
+:global(body.light-theme) .analysis-image-frame { border-color: #c8d7e4; background: #eef3f7; }
+:global(body.light-theme) .analysis-image-placeholder strong { color: #405d75; }
 :global(body.light-theme) .analysis-detail-grid h4 { color: #24445f; }
 :global(body.light-theme) .analysis-detail-card dd { color: #203b52; }
 :global(body.light-theme) .analysis-summary-card p { color: #4d657b; }
@@ -3349,6 +3614,8 @@ body.light-theme .reports-page .edit-form-field input,
 body.light-theme .reports-page .edit-form-field select { border-color: #b9cad9; background: #fff; color: #19324a; color-scheme: light; }
 body.light-theme .reports-page .edit-form-field input::placeholder { color: #7a8fa2; }
 body.light-theme .reports-page .analysis-result-footer .edit-cancel-button { border-color: #aebfd0; background: #f1f5f9; color: #385268; }
+body.light-theme .reports-page .delete-confirm-modal.edit-confirm-modal { border-color: #a9c9e8; background: radial-gradient(circle at 50% 0,rgba(13,110,253,.1),transparent 40%),#fff !important; box-shadow: 0 24px 70px rgba(40,65,88,.22); }
+body.light-theme .reports-page .delete-confirm-modal.edit-confirm-modal > small { color: #1768b5; }
 body.light-theme .reports-page .delete-confirm-modal { border-color: #e1b7bc; background: radial-gradient(circle at 50% 0,rgba(220,53,69,.1),transparent 38%),#fff !important; box-shadow: 0 24px 70px rgba(40,65,88,.22); }
 body.light-theme .reports-page .delete-modal-close { border-color: #b9cad9; background: #f5f8fb; color: #38546d; }
 body.light-theme .reports-page .delete-confirm-modal h3 { color: #17324a; }

@@ -56,54 +56,8 @@ Development server: `http://localhost:5173`
 
 ## PostgreSQL + PostGIS
 
-คู่มือฉบับเต็ม: [`docs/database-guide.md`](docs/database-guide.md)
-
-The local database runs in Docker and listens only on `127.0.0.1`.
-
-```bash
-docker compose --env-file .env.docker up -d --build
-docker compose --env-file .env.docker ps
-```
-
-PostgreSQL is available to host-side database tools at `127.0.0.1:5433`.
-Adminer is available at `http://127.0.0.1:8081`.
-
-Connection settings are defined directly in `compose.yaml`. This is intended for
-local development only because the database password is stored as plain text. The
-initialization scripts in `database/init/` create the PostGIS extensions and the
-initial `app` schema when the Docker volume is created for the first time.
-
-Connect with `psql` inside the container:
-
-```bash
-docker compose --env-file .env.docker exec postgres psql -U weaponeering_app -d weaponeering_db
-```
-
-Stop the database without deleting its data:
-
-```bash
-docker compose --env-file .env.docker down
-```
-
-The API is available at `http://127.0.0.1:3000/api`. During local development,
-Vite proxies `/api` requests to this service. Start the Vue application after the
-Docker services are healthy:
-
-```bash
-npm run dev
-```
-
-Images saved from the Analysis page are stored as files in the persistent
-`weaponeering_media_data` Docker volume. PostgreSQL stores their filename,
-content type, size, checksum, and owning analysis record in `app.attachments`.
-Supported image formats are PNG, JPEG, GIF, and BMP, up to 8 MB per image.
-When coordinates are analyzed and saved, the UI also captures a 1200x675 map
-image with the latitude and longitude overlay. Reports display the target photo
-and coordinate map side by side, and include both in PDF/Word exports.
-
-To intentionally recreate an empty local database, remove the Compose volume and
-start the service again. This permanently deletes the local database, so export a
-backup first.
+การติดตั้ง เชื่อมต่อ ตรวจสอบ สำรอง กู้คืน และแก้ปัญหาฐานข้อมูลรวมอยู่ใน
+[`docs/database-guide.md`](docs/database-guide.md) 
 
 ## Project Structure
 
